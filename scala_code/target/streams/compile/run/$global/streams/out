@@ -1,0 +1,18 @@
+[0m[[0minfo[0m] [0mRunning Main [0m
+[0m[[0mdebug[0m] [0mWaiting for threads to exit or System.exit to be called.[0m
+[0m[[0mdebug[0m] [0mWaiting for thread run-main-8 to terminate.[0m
+[0m[[0mdebug[0m] [0m  Classpath:[0m
+[0m[[0mdebug[0m] [0m	/home/nix/Bureau/TFE-Project/scala_code/target/scala-2.10/classes[0m
+[0m[[0mdebug[0m] [0m	/home/nix/.sbt/boot/scala-2.10.4/lib/scala-library.jar[0m
+[0m[[0mdebug[0m] [0m	/home/nix/.ivy2/cache/net.sf.jung/jung-api/jars/jung-api-2.0.1.jar[0m
+[0m[[0mdebug[0m] [0m	/home/nix/.ivy2/cache/net.sourceforge.collections/collections-generic/jars/collections-generic-4.01.jar[0m
+[0m[[0mdebug[0m] [0m	/home/nix/.ivy2/cache/net.sf.jung/jung-graph-impl/jars/jung-graph-impl-2.0.1.jar[0m
+[0m[[0mdebug[0m] [0m	/home/nix/.ivy2/cache/net.sf.jung/jung-visualization/jars/jung-visualization-2.0.1.jar[0m
+[0m[[0mdebug[0m] [0m	/home/nix/.ivy2/cache/net.sf.jung/jung-algorithms/jars/jung-algorithms-2.0.1.jar[0m
+[0m[[0mdebug[0m] [0m	/home/nix/.ivy2/cache/colt/colt/jars/colt-1.2.0.jar[0m
+[0m[[0mdebug[0m] [0m	/home/nix/.ivy2/cache/concurrent/concurrent/jars/concurrent-1.3.4.jar[0m
+[0m[[0mdebug[0m] [0m	/home/nix/.ivy2/cache/net.sf.jung/jung-io/jars/jung-io-2.0.1.jar[0m
+[0m[[0mdebug[0m] [0m	/home/nix/.ivy2/cache/org.codehaus.woodstox/wstx-asl/jars/wstx-asl-3.2.6.jar[0m
+[0m[[0mdebug[0m] [0m	/home/nix/.ivy2/cache/stax/stax-api/jars/stax-api-1.0.1.jar[0m
+[0m[[0mdebug[0m] [0m	Thread run-main-8 exited.[0m
+[0m[[0mdebug[0m] [0mWaiting for thread AWT-EventQueue-0 to terminate.[0m

@@ -1,0 +1,9 @@
+name := "scala_code"
+
+libraryDependencies += "io.continuum.bokeh" %% "bokeh" % "0.3"
+
+resolvers += Opts.resolver.sonatypeSnapshots
+
+
+
+

@@ -1,0 +1,13 @@
+It is better to use sbt in order to compile and run the code
+
+$ sbt
+> compile
+> run
+
+In order to compile manually: 
+
+$ scalac reader.scala kruskalMST.scala bayesian_network.scala main.scala
+
+then to run it
+
+$ scala main
