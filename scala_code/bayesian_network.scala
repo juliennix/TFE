@@ -13,20 +13,20 @@ import graphicalLearning.Kruskal._
 
 object Bayesian_network
 {
-    def entropy(l : List[Int]): Float = 
+    def entropy(l : List[Int]): Double = 
     {
         var length = l.length
-        var freq = l.groupBy(x=>x).mapValues(_.size.toFloat/length)
+        var freq = l.groupBy(x=>x).mapValues(_.size.toDouble/length)
         
         return freq.values.map{ x =>
-            -x * log(x) / log(2)}.reduce(_+_).toFloat
+            -x * log(x) / log(2)}.reduce(_+_).toDouble
     }
     
-    def conditionalEntropy(variable : List[Int], condition : List[Int]): Float =
+    def conditionalEntropy(variable : List[Int], condition : List[Int]): Double =
     {
 		var length = variable.length
 		var conjMap:Map[(Int,Int), Int] = Map()
-		var pY = condition.groupBy(x=>x).mapValues(_.size.toFloat/length)
+		var pY = condition.groupBy(x=>x).mapValues(_.size.toDouble/length)
 		
 		for (i <- 0 to length - 1) 
 		{
@@ -35,16 +35,16 @@ object Bayesian_network
 			else
 				conjMap += ((variable(i), condition(i)) -> 1)
 		}
-		var result = 0.toFloat
+		var result = 0.toDouble
 		conjMap.foreach
 		{
 			x =>
 			if (x._2 == 0) result
 			else
 			{
-				var normV = (x._2/length.toFloat)
+				var normV = (x._2.toDouble/length)
 
-				result = result - normV * (log((normV / pY(x._1._2)))/log(2)).toFloat
+				result = result - normV * (log((normV / pY(x._1._2)))/log(2)).toDouble
 			}
 		}	
 		return result 
@@ -80,7 +80,7 @@ object Bayesian_network
             //~ }.reduce(_+_).toFloat
     //~ }
 
-    def mutInfo(variable : List[Int], condition : List[Int]): Float = 
+    def mutInfo(variable : List[Int], condition : List[Int]): Double = 
     {
         var result = entropy(variable) - conditionalEntropy(variable, condition)
         return result
@@ -89,7 +89,7 @@ object Bayesian_network
     def skelTree(samples : List[List[Int]]) = 
     {
         var nbNodes = samples.length
-        var M = ofDim[Float](nbNodes, nbNodes) 
+        var M = ofDim[Double](nbNodes, nbNodes) 
         
         for (i <- 0 to nbNodes-2)
         {

@@ -65,7 +65,7 @@ object Kruskal
 	}
 
 
-	def kruskalTree(weightMatrix : Array[Array[Float]]): List[Kruskal.Edge[Symbol]] = {
+	def kruskalTree(weightMatrix : Array[Array[Double]]): List[Kruskal.Edge[Symbol]] = {
 			var nbNodes = weightMatrix.size
 			var listEdge = List[Kruskal.Edge[Symbol]]()
 			for (i <- 0 to nbNodes-2)
@@ -73,6 +73,7 @@ object Kruskal
 				for (j <- i+1 to nbNodes-1) 
 				{
 					listEdge = listEdge ::: List(Edge(Symbol(i.toString),Symbol(j.toString),weightMatrix(i)(j)))
+					
 				}
 			}
 			var mst = kruskal(listEdge)
