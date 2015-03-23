@@ -110,7 +110,7 @@ object Inference
     }  
 
 	
-	def setUpMarkovTree(markovTree : Graph[Double, Double], samples :  RDD[(Double, Array[Double])]) : Graph[Map[Double], Double] = 
+	def setUpMarkovTree(markovTree : Graph[Double, Double], samples :  RDD[(Double, Array[Double])]) : Graph[Map[(Double, Double), Double], Double] = 
 	{
 		val cart = samples.cartesian(samples).filter{ case ((key1, val1), (key2, val2)) => key1 < key2}
 		val keyValue = cart.map{ case ((key1, val1), (key2, val2)) => ((key1.toLong, key2.toLong), (val1, val2))}
@@ -123,7 +123,7 @@ object Inference
 		return Graph(vertices, markovTree.edges)
 	}	
 	
-	def beliefPropagation()
+	//~ def beliefPropagation()
 	
 	
 	

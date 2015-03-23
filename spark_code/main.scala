@@ -92,30 +92,29 @@ object Main {
 		
 		// Kruskal
         val kruskalSetEdges = kruskal(graph4)
-        val kruskalGraph = graph.subgraph(e => kruskalSetEdges.contains(e), (v,d) => true)
+        val kruskalGraph = graph4.subgraph(e => kruskalSetEdges.contains(e), (v,d) => true)
         
         // Prim
         val primSetEdges = PrimsAlgo(graph4)
-        val primGraph = graph2.subgraph(e => primSetEdges.contains(e), (v,d) => true)
+        val primGraph = graph4.subgraph(e => primSetEdges.contains(e), (v,d) => true)
         
         // Boruvka
         val boruvkaSetEdges = boruvkaAlgo(graph4)
-        val boruvkaGraph = graph2.subgraph(e => boruvkaSetEdges.contains(e), (v,d) => true)
+        val boruvkaGraph = graph4.subgraph(e => boruvkaSetEdges.contains(e), (v,d) => true)
 
         // MWST ALGORITHMS (second) //
         
         // Kruskal
         val kruskalEdgeRDD = kruskalDist(graph4)
-        val kruskalGraph2 = Graph(graph.vertices, kruskalEdgeRDD)
+        val kruskalGraph2 = Graph(graph4.vertices, kruskalEdgeRDD)
         
         // Prim
-        val primEdgeRDD = PrimsAlgo(graph4)
-        val primGraph2 = Graph(graph.vertices, primEdgeRDD)
+        val primEdgeRDD = PrimsRDD(graph4)
+        val primGraph2 = Graph(graph4.vertices, primEdgeRDD)
         
         // Boruvka
-
         val boruvkaEdgeRDD = boruvkaDistAlgo(graph4)
-        val boruvkaGraph2 = Graph(graph.vertices, boruvkaEdgeRDD)
+        val boruvkaGraph2 = Graph(graph4.vertices, boruvkaEdgeRDD)
                 
         // GHS
         val MessageGraph = GHSGraph(content, sc)
@@ -128,7 +127,7 @@ object Main {
         // MARKOVTREE CREATION // 
 
         val markovTree = orientedGraph(graph4)
-        
+        val tree = setUpMarkovTree(markovTree, content)
         // TIME COMPUTATION //
         
         val t2 = System.currentTimeMillis

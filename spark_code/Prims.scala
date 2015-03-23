@@ -108,7 +108,7 @@ object Prims {
 			rPrim(nbNodes, iter +1, finalE ++ edge, newJoined)
 		}
 	} 	
-	def PrimsAlgo[A](graph : Graph[A, Double]) : RDD[Edge[Double]]  = 
+	def PrimsRDD[A](graph : Graph[A, Double]) : RDD[Edge[Double]]  = 
 	{
 		val nbNodes = graph.vertices.count.toInt
 		val label = graph.vertices.first._1 
