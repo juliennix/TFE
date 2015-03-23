@@ -25,19 +25,25 @@ import graphicalLearning.Inference._
 object Main {
     def main(args:Array[String]) = 
     {
+		// SPARK CONFIGURATION //
+		
+		// Set the log messages of spark off
 		Logger.getLogger("org").setLevel(Level.OFF)
 		Logger.getLogger("akka").setLevel(Level.OFF) 
+		
+		// Define the spark context
 		val conf = new SparkConf()
              .setMaster("local[4]")
              .setAppName("bayesian_network")
              .set("spark.executor.memory", "2g")
-             
-		val sc = new SparkContext(conf)
+        val sc = new SparkContext(conf)
+        
+        // INPUT VARIABLES //
+        
         print("Please enter your name's textfile : " )
         //~ val filename = Console.readLine
         //~ val filename = "simple_labeled"
-        val filename = "test"
-        
+        val filename = "simple_labeled"
         
         print("Please enter your label delimiter in this file : " )
         //~ val labeldelimiter = Console.readLine
@@ -49,47 +55,81 @@ object Main {
         
         val t1 = System.currentTimeMillis
         
+        // READ INPUT FILES //
+        
         // Retrieve the content in an adequate file in a RDD[LabeledPoint]
-        val cnt = FileToPairRDD(filename, labeldelimiter, delimiter, sc)
-        val graph = fastGraphSecond(cnt,sc)
+        val content = FileToPairRDD(filename, labeldelimiter, delimiter, sc)
         // Retrieve the content in an adequate file in a RDD[LabeledPoint]
-		//~ val FileContents = FileGraphReader(filename, labeldelimiter, delimiter, sc)
+		val labeledContent = FileGraphReader(filename, labeldelimiter, delimiter, sc)
 		
-        //~ var M = skelTree(FileContents)
-        //~ kruskalTree(FileContents, sc)
-        //~ WriteAdjacency(M)
-        //~ PrimsAdjAlgo("PrimsInput", sc)
+		// Some old way to compute the mwst from a mutual information' array
+        val M = skelTree(labeledContent)
+		val graph = MatrixToGraph(M, sc)
+        kruskalTree(labeledContent, sc)
+        WriteAdjacency(M)
+        PrimsAdjAlgo("PrimsInput", sc)
         
-        // this method is here to prove that the computation depends a lot on
-        // the way you code, better use the second one
-        //~ var graph1 = directSlowInfoGraph(FileContents, sc).cache
+        // CREATE GRAPHS //
         
-        //~ var graph2 = afterInfoGraph(FileContents, sc).cache
+        // these functions are here to prove that the computation depends a lot on
+        // the way you code, better use the last one. Note that the graphs are
+        // directed graph and not fully dense
+        val graph1 = directSlowInfoGraph(labeledContent, sc).cache
         
-        //~ var graph3 = fastGraph(FileContents, sc).cache
+        val graph2 = afterInfoGraph(labeledContent, sc).cache
         
-        //~ var fullGraph = fastFullGraph(FileContents, sc).cache
-        //~ fullGraph.edges.collect
-        //~ var setEdges = kruskal(graph3)
-        //~ var graph4 = graph3.subgraph(e => setEdges.contains(e), (v,d) => true)
-        //~ var setEdges = PrimsAlgo(graph3)
-        //~ var graph5 = graph2.subgraph(e => setEdges.contains(e), (v,d) => true)
-        //~ var setEdges = boruvkaDistAlgo(fullGraph)
-        //~ var graph6 = graph2.subgraph(e => setEdges.contains(e), (v,d) => true)
-        //~ var fullGraph1 = fullGraph(FileContents, sc)
+        val graph3 = LabeledFastGraph(labeledContent, sc).cache
+        
+        val graph4 = RDDFastGraph(content,sc)
+        
+        // graph functions to define fully dense graphs
+        val fullGraph1 = LabeledfastFullGraph(labeledContent, sc).cache
+        
+        val fullGraph2 = RDDfastFullGraph(content, sc).cache
 
-        
-        //~ networkCreation(graph4.edges.collect)
-        
-        //~ var graph3 = GHSGraph(FileContents, sc)
-        //~ val edgeRDD = PrimsDistAlgoRec(graph)
-        val edgeRDD = kruskalDist(graph)
-        val graph4 = Graph(graph.vertices, edgeRDD)
-        //~ var setEdges = kruskal(graph)
-        //~ var graph4 : Graph[Double, Double] = graph.subgraph(e => setEdges.contains(e), (v,d) => true)
-        //~ PregelMST(graph4)
-        orientGraph(graph4)
+		// MWST ALGORITHMS (first) //
+		// Could return graphs directly indeed
 		
+		// Kruskal
+        val kruskalSetEdges = kruskal(graph4)
+        val kruskalGraph = graph.subgraph(e => kruskalSetEdges.contains(e), (v,d) => true)
+        
+        // Prim
+        val primSetEdges = PrimsAlgo(graph4)
+        val primGraph = graph2.subgraph(e => primSetEdges.contains(e), (v,d) => true)
+        
+        // Boruvka
+        val boruvkaSetEdges = boruvkaAlgo(graph4)
+        val boruvkaGraph = graph2.subgraph(e => boruvkaSetEdges.contains(e), (v,d) => true)
+
+        // MWST ALGORITHMS (second) //
+        
+        // Kruskal
+        val kruskalEdgeRDD = kruskalDist(graph4)
+        val kruskalGraph2 = Graph(graph.vertices, kruskalEdgeRDD)
+        
+        // Prim
+        val primEdgeRDD = PrimsAlgo(graph4)
+        val primGraph2 = Graph(graph.vertices, primEdgeRDD)
+        
+        // Boruvka
+
+        val boruvkaEdgeRDD = boruvkaDistAlgo(graph4)
+        val boruvkaGraph2 = Graph(graph.vertices, boruvkaEdgeRDD)
+                
+        // GHS
+        val MessageGraph = GHSGraph(content, sc)
+        val GHSMwstGraph = GHSmst(MessageGraph)
+        
+        // DISPLAY GRAPHS //
+        
+        networkCreation(graph4.edges.collect)
+        
+        // MARKOVTREE CREATION // 
+
+        val markovTree = orientedGraph(graph4)
+        
+        // TIME COMPUTATION //
         
         val t2 = System.currentTimeMillis
 		// Compute the time (in ms) of the main file

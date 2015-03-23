@@ -59,4 +59,73 @@ object Inference
 		markovTree.edges.foreach(println)
 		return markovTree
 	}	
+	
+	//~ def send(triplet: EdgeTriplet[Double, Double]):  Iterator[(org.apache.spark.graphx.VertexId, (Double, RDD[(Double, Array[Double]))] = 
+	//~ { 
+		//~ Iterator((tiplet.dstId, ( triplet.srcId, 
+	//~ }
+	//~ 
+	//~ setUpProbNode(vid: VertexId, attr: Map[Double, Double], message: (Long, RDD[(Double, Array[Double]))) = 
+	//~ {
+		//~ val father = message._1
+		//~ val samples = message._2
+		//~ if (father == 0.toDouble)
+			//~ samples.filter(x => x._1 == vid).mapValues{a => a.groupBy(x => x).map( a => (a._1, a._2.length.toDouble/240))}.first._2
+		//~ else
+			//~ 
+	def mapFunction(length : Int, variable : Array[Double], condition : Array[Double], i :Int = 0, conjMap : Map[(Double,Double), Int] = Map()) : Map[(Double,Double), Int] = 
+	{
+		if (i == length) return conjMap
+		else
+		{
+			if (conjMap.contains((variable(i), condition(i)))){
+				val newConjMap = conjMap.updated((variable(i), condition(i)), conjMap((variable(i), condition(i))) + 1)
+				mapFunction(length, variable, condition, i+1, newConjMap)
+			}
+			else{
+				val newConjMap = conjMap + ((variable(i), condition(i)) -> 1)
+				mapFunction(length, variable, condition, i+1, newConjMap)
+			}
+		}	
+	}
+    def conditionalProb(variable : Array[Double], condition : Array[Double]): Map[(Double, Double), Double] =
+    {
+		val length = variable.length
+		val pY = condition.groupBy(x=>x).mapValues(_.size.toDouble/length)
+		val conjMap = mapFunction(length, variable, condition)
+		return conjMap.map
+		{
+			case (key, value) =>
+			{
+				val norm = (value.toDouble / length)
+				(key, (norm / pY(key._2)))
+			}
+		}
+	}  			
+
+	def margProb(l : Array[Double]): Map[(Double, Double), Double] = 
+    {
+        val length = l.length
+        return l.groupBy(x=>(x, x)).mapValues(_.size.toDouble/length)
+    }  
+
+	
+	def setUpMarkovTree(markovTree : Graph[Double, Double], samples :  RDD[(Double, Array[Double])]) : Graph[Map[Double], Double] = 
+	{
+		val cart = samples.cartesian(samples).filter{ case ((key1, val1), (key2, val2)) => key1 < key2}
+		val keyValue = cart.map{ case ((key1, val1), (key2, val2)) => ((key1.toLong, key2.toLong), (val1, val2))}
+		val relation = markovTree.triplets.map(t => ((t.srcId, t.dstId), 0))
+		val joined = relation.join(keyValue)
+		val c = joined.map{ case ((key1, key2),(val1,(array1, array2))) => (key1, conditionalProb(array1, array2))}
+		val rootLabel = markovTree.vertices.filter{ case (vid, level) => level == 0.0}.keys
+		val root = samples.filter{ case (label, sample) => label == rootLabel}.map{ case (label, sample) => (label.toLong, margProb(sample))}
+		val vertices = c union root
+		return Graph(vertices, markovTree.edges)
+	}	
+	
+	def beliefPropagation()
+	
+	
+	
+	
 }

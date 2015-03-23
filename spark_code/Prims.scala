@@ -18,6 +18,7 @@ import graphicalLearning.GHS._
 
 object Prims {
 	
+	// no collect here but the edges and vertices are in the local driver
 	def PrimsAlgo[A](graph : Graph[A, Double])  : Set[Edge[Double]] = 
 	{
 		var setVertices = Set[Long](graph.vertices.first._1)
@@ -44,6 +45,8 @@ object Prims {
 		return setEdges
 	}
 
+	// The only element on the local drive here is the edge computed thanks to the min method on an RDD
+	// keys-values are used with join/filter... methods to construct RDD containing the correct edges
 	def PrimsDistAlgo(graph : Graph[Node, Double]) : RDD[Edge[Double]]  = 
 	{
 		val nbNodes = graph.vertices.count.toInt
@@ -89,15 +92,43 @@ object Prims {
 		}
 		return finalE	
 	}
+
+	// This version is done in a functional fashion only through RDD. Could create also a keys-values RDD and filter it
+	// in order to not take all the edges att each step
+	def rPrim( nbNodes : Int, iter : Int = 0,  finalE : RDD[Edge[Double]], joinedVE : RDD[(Int, (Set[Long], Edge[Double]))]) : RDD[Edge[Double]] = 
+	{
+		if ( iter == nbNodes - 1) return finalE
+		else {
+			val min = joinedVE.filter{ case (key, (set, edge)) => (set.contains(edge.srcId) && !set.contains(edge.dstId)) ||
+								  (!set.contains(edge.srcId) && set.contains(edge.dstId))}.reduceByKey{ case ((set1,edge1), (set2,edge2)) => 
+								  { if (edge1.attr < edge2.attr) (set1,edge1) else (set2,edge2)}}
+								  
+			val edge = min.map{ case (key, (set, edge)) => edge}
+			val newJoined = joinedVE.join(min).map{ case ( key, ((set , edge), (set2, newEdge))) => (key, (set ++ Set(newEdge.srcId) ++ Set(newEdge.dstId), edge))}
+			rPrim(nbNodes, iter +1, finalE ++ edge, newJoined)
+		}
+	} 	
+	def PrimsAlgo[A](graph : Graph[A, Double]) : RDD[Edge[Double]]  = 
+	{
+		val nbNodes = graph.vertices.count.toInt
+		val label = graph.vertices.first._1 
+		val keyV = graph.vertices.filter(x => x._1 == label).map(x => x._1).map(x => (1,Set(x)))
+		val keyE = graph.edges.map(x => (1, x))
+		val joinedVE = keyV.join(keyE) 
+		val finalE = graph.edges.filter(e => e != e)
+		return rPrim(nbNodes, 0, finalE, joinedVE) 	
+	}
 	
+	// This version is done in a functional fashion but the edge at each step still taken on the local drive. Could create also a keys-values RDD and filter it
+	// in order to not take all the edges att each step
 	def recPrim( nbNodes : Int, iter : Int = 0,  finalE : RDD[Edge[Double]], keyV : RDD[(Int, Set[Long])], keyE : RDD[(Int, Edge[Double])]) : RDD[Edge[Double]] = 
 	{
 		
 		if ( iter == nbNodes - 1) finalE
 		else {
 			val joinedVE = keyV.join(keyE).map{ case (key, value) => value}
-			val edge = joinedVE.filter(VE => (VE._1.contains(VE._2.srcId) && !VE._1.contains(VE._2.dstId)) ||
-								  (!VE._1.contains(VE._2.srcId) && VE._1.contains(VE._2.dstId))).reduceByKey((v1,v2) => 
+			val edge = joinedVE.filter{ case (set, edge) => (set.contains(edge.srcId) && !set.contains(edge.dstId)) ||
+								  (!set.contains(edge.srcId) && set.contains(edge.dstId))}.reduceByKey((v1,v2) => 
 								  { if (v1.attr < v2.attr) v1 else v2}).map{ case (set, edge) => edge}
 								 
 			val src = edge.first.srcId
@@ -109,6 +140,7 @@ object Prims {
 	def PrimsDistAlgoRec[A](graph : Graph[A, Double]) : RDD[Edge[Double]]  = 
 	{
 		val nbNodes = graph.vertices.count.toInt
+		// this method does not work when generic type is used, not find yet a way to use it
 		//~ val label = graph.pickRandomVertex()
 		val label = graph.vertices.first._1 
 		val keyV = graph.vertices.filter(x => x._1 == label).map(x => x._1).map(x => (1,Set(x)))
@@ -117,6 +149,9 @@ object Prims {
 		return recPrim(nbNodes, 0, finalE, keyV, keyE) 	
 	}
 
+	// Algorithm from a discusion on a google forum https://groups.google.com/forum/#!topic/spark-users/KBWyiNDl-kY
+	// It uses a file represents a graph, line by line there is the the source and then then destination with the associated weight in order to compute the mwst.
+	// It returns a String with separator containing the chosen edges
 	def PrimsMap(row: String): List[(String,String)] = 
 	{    
 		val nodeId = row.split(" ")(0)

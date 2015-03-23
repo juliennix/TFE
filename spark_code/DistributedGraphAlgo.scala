@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////
 // Author : Nix Julien                                         //        
 // For the University of Liège                                 //     
-// Manages the creation and techniques on distr. graph         //
+// Manage the creation and techniques on distr. graph          //
 ///////////////////////////////////////////////////////////////// 
 
 package graphicalLearning
@@ -18,10 +18,11 @@ import org.apache.spark.SparkConf
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 
+// The use of labeledPoint seems meanless as RDDs with keys-values make the deal
+
 object DistributedGraph
 {
-	
-	def createGraph(weightMatrix : Array[Array[Float]], sc : SparkContext) :  Graph[Long, Double] = 
+	def MatrixToGraph(weightMatrix : Array[Array[Double]], sc : SparkContext) :  Graph[Long, Double] = 
 	{
         var nbNodes = weightMatrix.size
         
@@ -37,7 +38,7 @@ object DistributedGraph
 			}
         
         val vertices: RDD[(VertexId,Long)] = sc.parallelize(verticesArray)
-        // Filter the edges with mutingo == 0
+        // Filter the edges with mutinfo == 0
         val edges: RDD[Edge[Double]] = sc.parallelize(edgesArray.filter(e => e.attr == 0))
 		val graph = Graph(vertices, edges)
 		return graph
@@ -63,7 +64,7 @@ object DistributedGraph
 					edgesArray((i * nbNodes) - ((i+1)*(i+1) - (i+1))/2 + j - (i + 1)) = Edge(i.toLong, j.toLong, mutualInfo)
 			}
 		}
-       // Filter the edges with mutingo == 0
+       // Filter the edges with mutinfo == 0
         val edges: RDD[Edge[Double]] = sc.parallelize(edgesArray.filter(e => e.attr == 0))
 		val graph = Graph(vertices, edges)
 		return graph
@@ -86,16 +87,12 @@ object DistributedGraph
 				edgesArray((i * nbNodes) - ((i+1)*(i+1) - (i+1))/2 + j - (i + 1)) = Edge(i.toLong, j.toLong, (weight))
 			}
 		}
-		// Filter the edges with mutingo == 0
+		// Filter the edges with mutinfo == 0
         val edges: RDD[Edge[Double]] = sc.parallelize(edgesArray.filter(e => e.attr == 0))
 		var graph = Graph(vertices,edges)
 		val weigthGraph = graph.mapTriplets( triplet => computeMutInfo(triplet)) 
 		return weigthGraph
-	}
-		
-	val computeMutInfo = (triplet : EdgeTriplet[Array[Double], Double]) =>
-			- mutInfo(triplet.srcAttr, triplet.dstAttr)
-			
+	}	
 			
 	def afterFullGraph(samples : RDD[LabeledPoint], sc : SparkContext) : Graph[Array[Double], Double] = 
 	{
@@ -113,7 +110,7 @@ object DistributedGraph
 					edgesArray(i * nbNodes + j) = Edge(i.toLong, j.toLong, (weight))
 			}
 		}
-        // Filter the edges with mutingo == 0
+        // Filter the edges with mutinfo == 0
         val edges: RDD[Edge[Double]] = sc.parallelize(edgesArray.filter(e => e.attr == 0))
 		val graph = Graph(vertices,edges)
 		val weigthGraph = graph.mapTriplets( triplet => computeMutInfo(triplet))
@@ -121,7 +118,7 @@ object DistributedGraph
 	}
 		
 
-	def fastGraph(samples : RDD[LabeledPoint], sc : SparkContext) :  Graph[Array[Double], Double] = 
+	def LabeledFastGraph(samples : RDD[LabeledPoint], sc : SparkContext) :  Graph[Array[Double], Double] = 
 	{
         val nbNodes = samples.count.toInt
 			
@@ -143,7 +140,7 @@ object DistributedGraph
 		return weigthGraph
 	}
 	
-	def fastGraphSecond(samples :  RDD[(Double, Array[Double])], sc : SparkContext) :  Graph[Double, Double] = 
+	def RDDFastGraph(samples :  RDD[(Double, Array[Double])], sc : SparkContext) :  Graph[Double, Double] = 
 	{			
 		val mutualInfo = mutInfoRDD(samples)
         val vertices: RDD[(VertexId, Double)] = samples.map { case(k,v) =>
@@ -153,7 +150,7 @@ object DistributedGraph
 		return graph
 	}
 	
-	def fastFullGraph(samples : RDD[LabeledPoint], sc : SparkContext) :  Graph[Array[Double], Double] = 
+	def LabeledfastFullGraph(samples : RDD[LabeledPoint], sc : SparkContext) :  Graph[Array[Double], Double] = 
 	{
         val nbNodes = samples.count.toInt
 			
@@ -174,4 +171,17 @@ object DistributedGraph
 		val weigthGraph = graph.mapTriplets( triplet => computeMutInfo(triplet))
 		return weigthGraph
 	}
+	
+	def RDDfastFullGraph(samples :  RDD[(Double, Array[Double])], sc : SparkContext) :  Graph[Double, Double] = 
+	{
+		val mutualInfo = fullMutInfoRDD(samples)
+        val vertices: RDD[(VertexId, Double)] = samples.map { case(k,v) =>
+			(k.toLong, k)}
+		val edges = mutualInfo.map{ case ((key1, key2), weight) => Edge(key1.toLong, key2.toLong, - weight)}
+		val graph = Graph(vertices, edges)
+		return graph
+	}
+	
+	val computeMutInfo = (triplet : EdgeTriplet[Array[Double], Double]) =>
+		- mutInfo(triplet.srcAttr, triplet.dstAttr)
 }

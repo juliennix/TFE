@@ -16,7 +16,7 @@ object Main
 		
         print("Please enter your name's textfile : " )
         //~ val filename = Console.readLine
-        val filename = "simple"
+        val filename = "3poss"
       
         print("Please enter your delimiter in this file : " )
         //~ val delimiter = Console.readLine

@@ -58,11 +58,11 @@ object Bayesian_network
     //~ {
         //~ var nbSamples = variable.length
         //~ var freqMap = variable.groupBy(x=>x).mapValues(_.size.toFloat)
-        //~ var cardinalityVar = freqMap.size
+        //~ var cardinalityVar = freqMap.keys.max + 1
         //~ var freqMap2 = condition.groupBy(x=>x).mapValues(_.size.toFloat)
-        //~ var cardinalityCond = freqMap2.size
+        //~ var cardinalityCond = freqMap2.keys.max + 1
         //~ var M = ofDim[Float](cardinalityVar, cardinalityCond)
-//~ 
+        //~ 
         //~ for (i <- 0 to nbSamples - 1)
         //~ {
             //~ M(variable(i))(condition(i)) = M(variable(i))(condition(i)) + 1

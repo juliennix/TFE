@@ -55,7 +55,7 @@ object ManageFile
     // Function which take a adjacency matrix corresponding to the depedency
     // between variables and create a file in order to be used for the Prims
     // algorithm
-    def WriteAdjacency(adjacencyMatrix : Array[Array[Float]]) =
+    def WriteAdjacency[T](adjacencyMatrix : Array[Array[T]]) =
     {  
         println("Now writing... ")
         var i = -1
