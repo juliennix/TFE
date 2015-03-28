@@ -126,8 +126,8 @@ object Main {
         
         // MARKOVTREE CREATION // 
 
-        val markovTree = orientedGraph(graph4)
-        val tree = setUpMarkovTree(markovTree, content)
+        val markovTree = orientedGraph(kruskalGraph2)
+        val markovTreeSetUp = setUpMarkovTree(markovTree, content)
         // TIME COMPUTATION //
         
         val t2 = System.currentTimeMillis
