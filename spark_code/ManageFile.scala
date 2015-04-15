@@ -7,13 +7,13 @@
 package graphicalLearning
 
 import org.apache.spark.SparkContext
-import org.apache.spark.rdd._
+import org.apache.spark.rdd.RDD
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 import java.io._
-import math._
+import math.random
 
-object ManageFile 
+object ManageFile extends Serializable
 {   
 	// Functions which takes an adequate file and its delimiter between 
 	// label and the sample and a delimiter for the sample itself
@@ -93,24 +93,24 @@ object ManageFile
 	// Function which takes a number of rows and the length of them
 	// Write a file "test" containing 0-1 values corresponding to a 
 	// file test that could be used to proceed performance test
-	def writeExample(nbSample : Int, sampleLength : Int) = {
+	def writeExample(nbSample : Int, sampleLength : Int, fileName : String, from : Int = 0, to : Int = 1) = {
 		println("Now writing... ")
 		var str = ""
-		val outputFile = new File("test")
+		val outputFile = new File(fileName)
 		val writer = new PrintWriter(new FileWriter(outputFile))
 		
-		for (line <- 0 to nbSample)
+		for (line <- 0 to nbSample - 1)
 		{
 			str = line.toString + 	","
 			for (element <- 0 to sampleLength)
 			{				 
 				if (element == sampleLength)
-					str = str + random.round.toString 
+					str = str + ((random * (to - from)) + from).round.toString
 				else 
-					str = str + random.round.toString + " "
+					str = str + ((random * (to - from)) + from).round.toString + " "
 			}
 			writer.write(str)
-			if (line != nbSample)
+			if (line != nbSample - 1)
 				writer.write("\n")
 		}
 		writer.close()

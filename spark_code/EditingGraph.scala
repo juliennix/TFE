@@ -31,7 +31,7 @@ import org.apache.spark.graphx.Edge
 
 object Network 
 {        
-    def networkCreation(graph : Array[Edge[Double]]) 
+    def networkCreation[ED](graph : Array[Edge[ED]]) 
     {	
 		var g = new edu.uci.ics.jung.graph.UndirectedSparseGraph[Long, String]()
 		graph.foreach
@@ -39,7 +39,7 @@ object Network
 			edge =>
 			g.addVertex(edge.srcId)
 			g.addVertex(edge.dstId)
-			g.addEdge("From " + edge.srcId.toString + " to " + edge.dstId.toString + " : " + math.BigDecimal(edge.attr).setScale(4, BigDecimal.RoundingMode.HALF_UP).toString, edge.srcId, edge.dstId)
+			g.addEdge("From " + edge.srcId.toString + " to " + edge.dstId.toString + " : ", edge.srcId, edge.dstId)
 		}
 		
 		var layout = new CircleLayout(g)

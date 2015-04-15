@@ -6,21 +6,23 @@
 
 package graphicalLearning
 
-import util.control.Breaks._
+import Array.ofDim
+import scala.util.control.Breaks._
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
-import org.apache.spark.rdd._
+import org.apache.spark.rdd.RDD
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.graphx._
-import collection.mutable.Set
-
+import org.apache.spark.graphx.Edge
+import org.apache.spark.graphx.Graph
+import scala.reflect.ClassTag
 
 import graphicalLearning.MutualInfo._
-import graphicalLearning.DistributedGraph._
 
-object Kruskal {
+object Kruskal extends Serializable
+{
+	
  	// Kruskal algortihm in a functional fashion with only the first minimum weight edge taken on the local drive.
-	def recKruskal[GraphType](edges : RDD[Edge[Double]], finalE : RDD[Edge[Double]], vertices : RDD[(Long,Long)], length : Int, i : Int = 0) : RDD[Edge[Double]] =
+	def recKruskal(edges : RDD[Edge[Double]], finalE : RDD[Edge[Double]], vertices : RDD[(Long,Long)], length : Int, i : Int = 0) : RDD[Edge[Double]] =
 	{
 		if (i == length) return finalE
 		else{
@@ -39,19 +41,21 @@ object Kruskal {
 		}
 	} 
 	
-	def kruskalDist[GraphType](graph : Graph[GraphType, Double]) : RDD[Edge[Double]] =
+	def kruskalEdgeRDD[VD : ClassTag](graph : Graph[VD, Double]) : Graph[VD, Double] =
 	{
 		val nbNodes = graph.vertices.count.toInt
 		val setVertices = graph.vertices.map{ case ( id,_)=> (id,id)}
 		val setEdges = graph.edges.filter( x => x != x)
 		
-		return recKruskal(graph.edges.sortBy(_.attr), setEdges, setVertices, nbNodes - 1) 
+		return Graph(graph.vertices, recKruskal(graph.edges.sortBy(_.attr), setEdges, setVertices, nbNodes - 1))
 	}
  	
  	// Here, we collect the sorted edges in order to loop on those and perform transformation on RDD (as we cannot loop on a RDD and access others)
- 	def containV(edges : Array[Edge[Double]], setEdges : Set[Edge[Double]], setVertices : RDD[Set[Long]]) : Set[Edge[Double]] =
+ 	// the way to specify the vertices are part of a growing tree is done on RDD despite the destination set is taken on the local drive
+ 	def containV(edges : Array[Edge[Double]], setVertices : RDD[Set[Long]], setEdges : Set[Edge[Double]] = Set[Edge[Double]]()) : Set[Edge[Double]] =
 	{
-		if (setVertices.count == 1)	return setEdges
+		val setSize = setVertices.count
+		if (setSize == 1L)	return setEdges
 		
 		val edge = edges.head
 		val src = edge.srcId
@@ -59,29 +63,29 @@ object Kruskal {
 		val setDst = setVertices.filter(set => set.contains(dst)).first
 		val newVertices = setVertices.map(set =>	
 			if (set.contains(src) && !set.contains(dst)) set ++ setDst
-			else set).filter(set => (set.contains(src) && set.contains(dst)) || (!set.contains(src) && !set.contains(dst)))  
-		val newEdges = setEdges ++ Set(edge)
-		containV(edges.drop(1), newEdges, newVertices)		
+			else set).filter(set => (set.contains(src) && set.contains(dst)) || (!set.contains(src) && !set.contains(dst))) 
+		val newSetSize = newVertices.count
+		if(newSetSize < setSize)
+			containV(edges.drop(1), newVertices, setEdges ++ Set(edge))
+		else
+			containV(edges.drop(1), newVertices, setEdges)		
 	}
-	def kruskalSecond[GraphType](graph : Graph[GraphType, Double]) : Set[Edge[Double]] =
+	def kruskalEdges[VD: ClassTag](graph : Graph[VD, Double]) : Graph[VD, Double] =
 	{
-		val setEdges = Set[Edge[Double]]()
-	
 		val setVertices = graph.vertices.map{ case (vid, _) => Set(vid)}
-		
 		val edges = graph.edges.sortBy(_.attr).collect
 
-		return containV(edges, setEdges, setVertices)	 
+		val  setEdges = containV(edges, setVertices)	
+		return graph.subgraph(e => setEdges.contains(e), (v,d) => true) 
 	} 	
  	
- 	
+
  	// Here, sorting the edge is done on RDD but the result is collected, as the vertices thus, the computation is done mostly on the local drive
 	def remove(num: Set[Long], A: Array[Set[Long]]) = A diff Array(num)
 
-	def kruskal[GraphType](graph : Graph[GraphType, Double]) : Set[Edge[Double]] =
+	def setOfGoodEdges[VD: ClassTag](graph : Graph[VD, Double]) :  Set[Edge[Double]] =
 	{
 		var setEdges = Set[Edge[Double]]()
-	
 		var setVertices = graph.vertices.collect.map(x => Set(x._1))
 		
 		graph.edges.sortBy(_.attr).collect.foreach
@@ -121,37 +125,19 @@ object Kruskal {
 				}
 			}
 		}
-		return setEdges	 
+        return setEdges	 
 	}
 	
-	//~ def recKruskal[GraphType](edges : RDD[Edge[Double]], finalE : RDD[Edge[Double]], vertices : RDD[(Long,Long)], length : Int, i : Int = 0) : RDD[Edge[Double]] =
-	//~ {
-		//~ 
-		//~ 
-		//~ if (i == length) return false
-		//~ 
-		//~ }
-	//~ } 
-	//~ 
-	//~ 
-	//~ 
-	//~ def kruskalDist[GraphType](graph : Graph[GraphType, Double]) : RDD[Edge[Double]] =
-	//~ {
-		//~ val nbNodes = graph.vertices.count.toInt
-		//~ val setVertices = graph.vertices.map{ case ( id,_)=> (id,id)}
-		//~ 
-		//~ val sortedEdges = graph.edges.sortBy(_.attr).cache
-		//~ 
-		//~ val setSrcEdges = graph.sortedEdges.map( e => (e.srcId, e))
-		//~ val setDstEdges = graph.sortedEdges.map( e => (e.dstId, e))
-		//~ val srcUdst = setSrcEdges union setDstEdges
-		//~ 
-//~ 
-		//~ return recKruskal(srcUdst, setVertices, nbNodes)
-	//~ }
-
-	//code of Daniel Gonau//
+	def kruskalEdgesAndVertices[VD: ClassTag](graph : Graph[VD, Double]) : Graph[VD, Double] =
+	{
+		val setEdges = setOfGoodEdges(graph)
+		return graph.subgraph(e => setEdges.contains(e), (v,d) => true)
+	}
+	
+	// code of Daniel Gonau//
 	// https://dgronau.wordpress.com/2010/11/28/nochmal-kruskal
+	// Compute the mwst on the local drive taking an array of Edge or
+	// with RDD[labeledPoint] to sort on RDD then on the local drive
 	case class EdgeKruskal[A](v1:A, v2:A, weight:Double)
  
 	type LE[A] = List[EdgeKruskal[A]]
@@ -208,7 +194,7 @@ object Kruskal {
 		}
 	}
 
-
+	// on the local drive
 	def kruskalTree(weightMatrix : Array[Array[Double]]) = 
 	{
 		var nbNodes = weightMatrix.size
@@ -223,6 +209,7 @@ object Kruskal {
 		println(kruskalBis(listEdge))
 	}
 	
+	// sorted done on RDD
 	def kruskalTree(samples : RDD[LabeledPoint], sc : SparkContext) = 
 	{
 		var nbNodes = samples.count.toInt
@@ -238,5 +225,81 @@ object Kruskal {
 		var LEP = sc.parallelize(listEdge)
 		println(kruskalBis(LEP))
 	}
+	
+    def skelTree(samples : RDD[LabeledPoint]) : Array[Array[Double]] = 
+    {
+        var nbNodes = samples.count.toInt
+        var M = ofDim[Double](nbNodes, nbNodes) 
+        
+        for (i <- 0 to nbNodes-2)
+        {
+            for (j <- i+1 to nbNodes-1) 
+            {
+                M(i)(j) = - mutInfo(nbNodes, samples, i.toLong, j.toLong)
+            }
+        }
+        
+        kruskalTree(M)
+        return M
+        
+    }
+    
+	//~ def skelTree(samples : org.apache.spark.rdd.RDD[(Float, Array[Double])]) : Array[Array[Double]] = 
+    //~ {
+        //~ var nbNodes = samples.count.toInt
+        //~ var M = ofDim[Double](nbNodes, nbNodes) 
+        //~ 
+        //~ for (i <- 0 to nbNodes-2)
+        //~ {
+            //~ for (j <- i+1 to nbNodes-1) 
+            //~ {
+                //~ //if (i == j) M(i)(j) = -10000
+                //~ //else M(i)(j) = - mutInfo(samples(i), samples(j))
+                //~ M(i)(j) = - mutInfo(samples.lookup(i)(0).toList, samples.lookup(j)(0).toList)
+            //~ }
+        //~ }
+        //~ 
+        //~ kruskalTree(M)
+        //~ return M
+        //~ 
+    //~ }
+
+    //~ def skelTree(samples : org.apache.spark.rdd.RDD[(Float, Array[Float])]) : Array[Array[Double]] = 
+    //~ {
+        //~ var nbNodes = samples.count.toInt
+        //~ var M = ofDim[Double](nbNodes, nbNodes) 
+        //~ 
+        //~ for (i <- 0 to nbNodes-2)
+        //~ {
+            //~ for (j <- i+1 to nbNodes-1) 
+            //~ {
+                //~ //if (i == j) M(i)(j) = -10000
+                //~ //else M(i)(j) = - mutInfo(samples(i), samples(j))
+                //~ M(i)(j) = - mutInfo(samples.filter(a => a._1 == i.toFloat), samples.filter(a => a._1 == j.toFloat))
+            //~ }
+        //~ }
+        //~ 
+        //~ kruskalTree(M)
+        //~ return M
+        //~ 
+    //~ }
+    
+    //~ def skelTree(samples : RDD[LabeledPoint]) : Array[Array[Double]] = 
+    //~ {
+        //~ val nbNodes = samples.count.toInt
+        //~ val M = ofDim[Double](nbNodes, nbNodes) 
+        //~ 
+        //~ for (i <- 0 to nbNodes-2)
+        //~ {
+            //~ for (j <- i+1 to nbNodes-1) 
+            //~ {
+//~ 
+                //~ M(i)(j) = - mutInfo(samples.filter(a => a.label == i.toFloat), samples.filter(a => a.label == j.toFloat))
+            //~ }
+        //~ }
+        //~ kruskalTree(M)
+        //~ return M
+        //~ 
+    //~ }
  
 }

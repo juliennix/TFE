@@ -8,19 +8,15 @@ package graphicalLearning
 
 import graphicalLearning.MutualInfo._
 
-import org.apache.spark._
 import org.apache.spark.graphx._
-import org.apache.spark.graphx.lib._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.SparkConf
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 
 // The use of labeledPoint seems meanless as RDDs with keys-values make the deal
 
-object DistributedGraph
+object DistributedGraph extends Serializable
 {
 	def MatrixToGraph(weightMatrix : Array[Array[Double]], sc : SparkContext) :  Graph[Long, Double] = 
 	{
@@ -184,4 +180,15 @@ object DistributedGraph
 	
 	val computeMutInfo = (triplet : EdgeTriplet[Array[Double], Double]) =>
 		- mutInfo(triplet.srcAttr, triplet.dstAttr)
+		
+		
+	def GHSGraph(samples :  RDD[(Double, Array[Double])], sc : SparkContext) :  Graph[GHSNode, GHSEdge] = 
+	{			
+		val mutualInfo = mutInfoRDD(samples)
+        val vertices: RDD[(VertexId, GHSNode)] = samples.map { case(k,v) =>
+			(k.toLong, GHSNode(Fragment(k.toLong, k.toLong, 0D), AddedLink()))}
+		val edges = mutualInfo.map{ case ((key1, key2), weight) => Edge(key1.toLong, key2.toLong, GHSEdge(- weight))}
+		val graph = Graph(vertices, edges)
+		return graph
+	}
 }

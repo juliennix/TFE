@@ -6,33 +6,31 @@
 
 package graphicalLearning
 
-import graphicalLearning.Kruskal._
-
-import Array._
+import Array.ofDim
 import math.log
-import org.apache.spark.rdd._
-import org.apache.spark.SparkContext._
+import org.apache.spark.rdd.RDD
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.graphx._
 
-object MutualInfo
+object MutualInfo extends Serializable
 {
     // Totally done through RDD using the cartesian product (may be heavy)
     def mutInfoRDD(samples : RDD[(Double, Array[Double])]) : RDD[((Double,Double), Double)] =
     {
+		val precision = 8 // number of decimal digits
 		val keyValue = samples.cartesian(samples).filter{ case ((key1, val1), (key2, val2)) => key1 < key2}
 		return keyValue.map{ case ((key1, val1), (key2, val2)) => {
-			((key1,key2) , entropy(val1) - conditionalEntropy(val1, val2))
+			((key1,key2) , truncateAt(entropy(val1) - conditionalEntropy(val1, val2), precision))
 			}
 		}
 	}
 	// Same but keeping the whole cartesian product (may be heavy)
     def fullMutInfoRDD(samples : RDD[(Double, Array[Double])]) : RDD[((Double,Double), Double)] =
     {
+		val precision = 8 // number of decimal digits
 		val keyValue = samples.cartesian(samples).filter{ case ((key1, val1), (key2, val2)) => key1 != key2}
 		return keyValue.map{ case ((key1, val1), (key2, val2)) => {
-			((key1,key2) , entropy(val1) - conditionalEntropy(val1, val2))
+			((key1,key2) , truncateAt( entropy(val1) - conditionalEntropy(val1, val2), precision))
 			}
 		}
 	}
@@ -41,26 +39,48 @@ object MutualInfo
     // of the filtered RDD[LabeledPoint]
     def mutInfo(variable : RDD[LabeledPoint], condition : RDD[LabeledPoint]): Double = 
     {
+		val precision = 8 // number of decimal digits
         val result = entropy(variable.first.features.toArray) - conditionalEntropy(variable.first.features.toArray, condition.first.features.toArray)
-        return result
+        return truncateAt(result, precision)
     } 
 
 	// Wanted to compute in a more efficient way by passing the length and not computing multiple times and computing
 	// the mutual information through RDD but as we cannot access at multiple part of one RDD, this is not used
     def mutInfo(length : Int, data : RDD[LabeledPoint], variableLabel : Long, conditionLabel : Long): Double = 
     {
+		val precision = 8 // number of decimal digits
         val result = entropy(length, data, variableLabel) - conditionalEntropy(length, data, variableLabel, conditionLabel)
-        return result
+        return truncateAt(result, precision)
     } 
  
     // Used by the "after" graph in order to compute the mutual information knowing that each sample is stored
     // in the nodes of the graph in order to compute in parallele
     def mutInfo(variable : Array[Double], condition : Array[Double]): Double = 
     {
+		val precision = 8 // number of decimal digits
         val result = entropy(variable) - conditionalEntropy(variable, condition)
-        return result
+        return truncateAt(result, precision)
     } 
-          
+     
+	def truncateAt(n: Double, p: Int): Double = { val s = math pow (10, p); (math floor n * s) / s }     
+    
+    // I(X;Y|Z) = H(X|Z) - H(X|Y,Z)
+    //          = H(X|Z) - H(X,Y,Z) + H(Y,Z)
+    //~ def condMutInfoRDD(samples : RDD[(Double, Array[Double])]) : RDD[((Double,Double), Double)] =
+    //~ {
+		//~ val precision = 8 // number of decimal digits
+		//~ val keyValue = samples.cartesian(samples).filter{ case ((key1, val1), (key2, val2)) => key1 < key2}
+		//~ return keyValue.map{ case ((key1, val1), (key2, val2)) => {
+			//~ ((key1,key2) , truncateAt(conditionalEntropy(val1, val2) - jointEntropy(val1, val2 + jointEntropy(val), precision))
+			//~ }
+		//~ }
+	//~ }
+    //~ 
+    //~ def jointEntropy( variableArray : Array[Array[Double]])
+    //~ {
+		//~ 
+	//~ }
+    
 	def entropy(l : Array[Double]): Double = 
     {
         val length = l.length
@@ -91,13 +111,13 @@ object MutualInfo
 		val pY = condition.groupBy(x=>x).mapValues(_.size.toDouble/length)
 		val conjMap = mapFunction(length, variable, condition)
 		return conjMap.map
-		{
-			x =>
-			if (x._2 == 0) 0
+		{ 
+			case (key, count) =>
+			if (count == 0) 0D
 			else
 			{
-				val norm = (x._2.toDouble / length)
-				- norm * (math.log((norm / pY(x._1._2)))/math.log(2))
+				val norm = (count.toDouble / length)
+				- norm * (math.log((norm / pY(key._2)))/math.log(2))
 			}
 		}.reduce(_ + _)
 	}   
@@ -128,24 +148,6 @@ object MutualInfo
 			}
 		}.reduce(_ + _)
 	} 
-
-    def skelTree(samples : RDD[LabeledPoint]) : Array[Array[Double]] = 
-    {
-        var nbNodes = samples.count.toInt
-        var M = ofDim[Double](nbNodes, nbNodes) 
-        
-        for (i <- 0 to nbNodes-2)
-        {
-            for (j <- i+1 to nbNodes-1) 
-            {
-                M(i)(j) = - mutInfo(nbNodes, samples, i.toLong, j.toLong)
-            }
-        }
-        
-        kruskalTree(M)
-        return M
-        
-    }
     
     // Warning: only if your variables take consecutive values from 0 to n
     def getCol(n: Int, a: Array[Array[Double]]) = a.map{_(n - 1)}
@@ -184,63 +186,7 @@ object MutualInfo
             }.reduce(_+_)
     }
     
-	//~ def skelTree(samples : org.apache.spark.rdd.RDD[(Float, Array[Double])]) : Array[Array[Double]] = 
-    //~ {
-        //~ var nbNodes = samples.count.toInt
-        //~ var M = ofDim[Double](nbNodes, nbNodes) 
-        //~ 
-        //~ for (i <- 0 to nbNodes-2)
-        //~ {
-            //~ for (j <- i+1 to nbNodes-1) 
-            //~ {
-                //~ //if (i == j) M(i)(j) = -10000
-                //~ //else M(i)(j) = - mutInfo(samples(i), samples(j))
-                //~ M(i)(j) = - mutInfo(samples.lookup(i)(0).toList, samples.lookup(j)(0).toList)
-            //~ }
-        //~ }
-        //~ 
-        //~ kruskalTree(M)
-        //~ return M
-        //~ 
-    //~ }
 
-    //~ def skelTree(samples : org.apache.spark.rdd.RDD[(Float, Array[Float])]) : Array[Array[Double]] = 
-    //~ {
-        //~ var nbNodes = samples.count.toInt
-        //~ var M = ofDim[Double](nbNodes, nbNodes) 
-        //~ 
-        //~ for (i <- 0 to nbNodes-2)
-        //~ {
-            //~ for (j <- i+1 to nbNodes-1) 
-            //~ {
-                //~ //if (i == j) M(i)(j) = -10000
-                //~ //else M(i)(j) = - mutInfo(samples(i), samples(j))
-                //~ M(i)(j) = - mutInfo(samples.filter(a => a._1 == i.toFloat), samples.filter(a => a._1 == j.toFloat))
-            //~ }
-        //~ }
-        //~ 
-        //~ kruskalTree(M)
-        //~ return M
-        //~ 
-    //~ }
-    
-    //~ def skelTree(samples : RDD[LabeledPoint]) : Array[Array[Double]] = 
-    //~ {
-        //~ val nbNodes = samples.count.toInt
-        //~ val M = ofDim[Double](nbNodes, nbNodes) 
-        //~ 
-        //~ for (i <- 0 to nbNodes-2)
-        //~ {
-            //~ for (j <- i+1 to nbNodes-1) 
-            //~ {
-//~ 
-                //~ M(i)(j) = - mutInfo(samples.filter(a => a.label == i.toFloat), samples.filter(a => a.label == j.toFloat))
-            //~ }
-        //~ }
-        //~ kruskalTree(M)
-        //~ return M
-        //~ 
-    //~ }
     
 }
 

@@ -6,37 +6,82 @@
 
 package graphicalLearning
 
-import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
-import util.control.Breaks._
+import scala.util.control.Breaks._
 import org.apache.spark.graphx._
-import graphicalLearning.DistributedGraph._
+import org.apache.spark.graphx.VertexId
 import org.apache.spark.rdd.RDD
+import scala.reflect.ClassTag
 //~ import scalaz._ 
 
-object Boruvka {
+case class NewIdVertex(id : VertexId, hasChanged : Boolean)
+
+object Boruvka extends Serializable
+{
+	// Only RDD boruvka (could be optimized)
+	def isEmpty[T](rdd : RDD[T]) = 
+	{
+		rdd.mapPartitions(it => Iterator(!it.hasNext)).reduce(_&&_) 
+	}
 	
-	// Only RDD boruvka (should be optimized)
+	def minEdge(edge1 : Edge[Double], edge2 : Edge[Double]) : Edge[Double] =
+	{
+		if(edge1.attr < edge2.attr) edge1
+		else if (edge1.attr == edge2.attr)
+		{
+			if(edge1.srcId < edge2.srcId) edge1
+			else if(edge1.srcId == edge2.srcId)
+			{
+				if(edge1.dstId < edge2.dstId) edge1
+				else edge2
+				
+			}
+			else edge2
+		}
+		else
+			edge2
+	}
+	
+	def updateId(idVertex : RDD[(VertexId, (VertexId, VertexId))]) : RDD[(VertexId, VertexId)] =
+	{
+		val destVertex = idVertex.map{ case (s, (d, w)) => (d, (s, w))}.cache()
+		val update = destVertex.reduceByKey((a,b) => if(a._2 < b._2) a else b).cache()
+		val updateS = idVertex.join(update).map{ case (src, ((dst, w1), (newD, minW))) => (src, (dst, math.min( w1, minW)))}.cache()
+		val newS = (idVertex.subtractByKey(updateS) union updateS).cache
+		val nn = destVertex.join(update).join(updateS).map{ case (dst, (((src,w),(dst2, w2)), (dst3, w3))) => (src, (dst, math.min(w2,w3)))}
+		val updatedAll = newS.join(nn).map{ case (src, ((dst1, w1), (dst2, w2))) =>  
+				if(w1 < w2) (src, (dst1,  NewIdVertex(w1, true)))
+				else if(w1 > w2) (src, (dst1,  NewIdVertex(w2, true)))
+				else (src, (dst1, NewIdVertex(w1, false)))}.cache
+		if(isEmpty(updatedAll.filter{ case (src, (dst, newIdVertex)) => newIdVertex.hasChanged}))
+			return updatedAll.map{ case (src, (dst, newIdVertex)) => (src, newIdVertex.id)}
+		else
+		{
+			updateId(updatedAll.map{ case (src, (dst, newIdVertex)) => (src, (dst, newIdVertex.id))})
+		}
+	}
+
 	def boruvkaRec(finalE : RDD[Edge[Double]], setVertices : RDD[(Long, Long)], setEdges : RDD[(Long, Edge[Double])], nodesLeft : Int) : RDD[Edge[Double]] = 
 	{
 		if (nodesLeft == 0) return finalE	
 		else 
 		{
-			val minEdges = setVertices.join(setEdges).map{ case ( key1, (key2, edge)) => (key1, edge)}.reduceByKey((e1, e2) => if (e1.attr < e2.attr) e1 else e2)
-			val newVertices = minEdges.map{ case (key, edge) => { val minId  = math.min(edge.srcId, edge.dstId)
-				(minId,minId)}}
+			val minEdges = setVertices.join(setEdges).map{ case ( key1, (key2, edge)) => (key1, edge)}.reduceByKey((e1, e2) => minEdge(e1, e2))
+			val idVertex = minEdges.map{ case (key, edge) => if (edge.srcId == key) (key, (edge.dstId, math.min(key, edge.dstId))) else (key, (edge.srcId, math.min(key, edge.srcId)))}
+			val newId = updateId(idVertex)
+			val newVertices = updateId(idVertex).map{ case (src, id) => (id, id)}
 			val newEdges = minEdges.values.distinct
-			val addedNodes = newEdges.count.toInt
+			val addedEdges = newEdges.count.toInt
 			val lighterSetEdges = setEdges.subtract(minEdges)
-			val newSetEdges = lighterSetEdges.join(minEdges).map{ case (key, (edge1, edge2)) => {
-				val minId = math.min(edge2.srcId, edge2.dstId)
-				 if(minId < key) (minId, edge1) else (key, edge1)}}
+			val joinedSrc = lighterSetEdges.join(newId).map{ case (oldId, (edge, srcId)) => if (edge.srcId == oldId) (edge.dstId, (edge, srcId)) else (edge.srcId, (edge, srcId))}
+			val newSetEdges = joinedSrc.join(newId).filter{ case (oldId, ((edge, srcId), dstId)) => srcId != dstId}.map{ case (oldId, ((edge, srcId), dstId)) =>
+				 if(oldId == edge.srcId) (dstId, Edge(dstId, srcId, edge.attr)) else (dstId, Edge(srcId, dstId, edge.attr))}
 
-			boruvkaRec(finalE ++ newEdges, newVertices, newSetEdges, nodesLeft - addedNodes)
+			boruvkaRec(finalE ++ newEdges, newVertices, newSetEdges, nodesLeft - addedEdges)
 		}
 	}
 	
-	def boruvkaDistAlgo[GraphType](graph : Graph[GraphType, Double]) : RDD[Edge[Double]] = 
+	def boruvkaDistAlgo[VD: ClassTag](graph : Graph[VD, Double]) : Graph[VD, Double] = 
 	{
 		val nbNodes = graph.vertices.count.toInt
 
@@ -46,17 +91,29 @@ object Boruvka {
 		
 		val setSrcEdges = graph.edges.map( e => (e.srcId, e))
 		val setDstEdges = graph.edges.map( e => (e.dstId, e))
-		val srcUdst = setSrcEdges union setDstEdges
+		val setEdges = setSrcEdges union setDstEdges
 		
-		return boruvkaRec(finalE, setVertices, srcUdst, nbNodes - 1)
+		return Graph(graph.vertices, boruvkaRec(finalE, setVertices, setEdges, nbNodes - 1))
 	}
+
+	//~ def boruvkaDistAlgo[VD: ClassTag](graph : Graph[VD, Double]) : Graph[VD, Double] = 
+	//~ {
+		//~ val nbNodes = graph.vertices.count.toInt
+//~ 
+		//~ val setVertices = graph.vertices.map{ case (vid, _) => (vid, vid)}
+//~ 
+		//~ val finalE = graph.edges.filter(e => e != e)
+		//~ 
+		//~ val setEdges = graph.edges.map( e => (e.srcId, e))
+		//~ 
+		//~ return Graph(graph.vertices, boruvkaRec(finalE, setVertices, setEdges, nbNodes - 1))
+	//~ }
 	
 	
 	// borukva done mostly on local drive. RDD are used to find the minimum edge by using the subgraph method
 	def remove(num: Set[Long], A: Array[Set[Long]]) = A diff Array(num)
 
-	
-	def boruvkaAlgo[GraphType](graph : Graph[GraphType, Double]) : Set[Edge[Double]] = 
+	def boruvkaAlgo[VD: ClassTag](graph : Graph[Double, Double]) : Graph[Double, Double] = 
 	{
 		var setEdges = Set[Edge[Double]]()
 		
@@ -73,9 +130,8 @@ object Boruvka {
 				smallG =>
 				edges += graph.subgraph(e => smallG.contains(e.srcId) && !smallG.contains(e.dstId) ||
 											smallG.contains(e.dstId) && !smallG.contains(e.srcId),
-											(v,d) => true).edges.min()(Ordering.by(e => e.attr))
+											(v,d) => true).edges.min()(Ordering.by(e => (e.attr, e.srcId, e.dstId)))
 			}
-			
 			edges.foreach
 			{
 				edge =>
@@ -102,13 +158,16 @@ object Boruvka {
 								dstFound = true}
 						}
 					}
-
-					setVertices(indexSrc) = setVertices(indexSrc) ++ setVertices(indexDst)
-					setVertices = remove(setVertices(indexDst), setVertices)
-
-					setEdges += edge	
+					
+					if(indexSrc != indexDst) 
+					{
+						setVertices(indexSrc) = setVertices(indexSrc) ++ setVertices(indexDst)
+						setVertices = remove(setVertices(indexDst), setVertices)
+	
+						setEdges += edge
+					}
 			}	
 		}
-		return setEdges
+		return graph.subgraph(e => setEdges.contains(e), (v,d) => true)
 	}
 }

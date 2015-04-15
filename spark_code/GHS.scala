@@ -1,270 +1,263 @@
 /////////////////////////////////////////////////////////////////
 // Author : Nix Julien                                         //        
 // For the University of Liège                                 //     
-// Manages the creation and techniques on distr. graph         //
+// Compute the mwst thanks to message passing algorithm        //
 ///////////////////////////////////////////////////////////////// 
 
 package graphicalLearning
 
-import graphicalLearning.MutualInfo._
-
-import org.apache.spark._
-import org.apache.spark.graphx._
-import org.apache.spark.graphx.lib._
+import org.apache.spark.graphx.EdgeDirection
+import org.apache.spark.graphx.Graph
+import org.apache.spark.graphx.EdgeTriplet
+import org.apache.spark.graphx.Edge
+import org.apache.spark.graphx.VertexId
 import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
-import org.apache.spark.SparkConf
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.regression.LabeledPoint
 
 
-object GHS
+object Fragment extends Serializable
 {
-	def GHSGraph(samples :  RDD[(Double, Array[Double])], sc : SparkContext) :  Graph[((Long, Long), (Long,Long)), Double] = 
-	{			
-		val mutualInfo = mutInfoRDD(samples)
-        val vertices: RDD[(VertexId, ((Long,Long), (Long, Long)))] = samples.map { case(k,v) =>
-			(k.toLong, ((k.toLong, k.toLong), (-1.toLong, -1.toLong)))}
-		val edges = mutualInfo.map{ case ((key1, key2), weight) => Edge(key1.toLong, key2.toLong, - weight)}
-		val graph = Graph(vertices, edges)
-		return graph
+	def apply():Fragment = Fragment(-1L, -1L, 0D)
+}
+
+object AddedLink extends Serializable 
+{
+	def apply():AddedLink = AddedLink(-1L, -1L)
+}
+
+case class Fragment(id: VertexId, lastFragmentId: VertexId, minWeight : Double = 0D) extends Serializable
+
+case class AddedLink(from: VertexId, to: VertexId) extends Serializable
+
+case class GHSEdge(weight: Double) extends Serializable
+
+object GHSNode extends Serializable 
+{
+	def apply(): GHSNode = GHSNode(Fragment(), AddedLink())
+}
+case class GHSNode(fragment: Fragment, addedLink: AddedLink) extends Serializable
+
+case class GHSMessage(node: GHSNode, edgeValue: GHSEdge) extends Serializable 
+{
+	var isUnset: Boolean = node.fragment.id == -1L
+}
+
+case class UpdateMessage(newId : VertexId = -1L) extends Serializable
+{
+	var isUnset: Boolean = newId == -1L
+}
+
+object GHS extends Serializable
+{
+	
+	/////////////////////////////////////////////First phase////////////////////////////////////////////
+	
+	// => compute the minimum edges from a fragment to another keeping the corresponding fragment id
+	def vertexProg(vid: VertexId, attr: GHSNode, message: GHSMessage) = message.isUnset match 
+	{
+		case true => attr
+		case false => GHSNode(Fragment(attr.fragment.id, attr.fragment.id, message.edgeValue.weight), message.node.addedLink)
 	}
 	
-	
-	//~ def GHSGraph(samples :  RDD[(Double, Array[Double])], sc : SparkContext) :  Graph[((Long, Long), List[(Long,Long)]), EdgeAttr] = 
-	//~ {			
-		//~ val mutualInfo = mutInfoRDD(samples)
-        //~ val vertices: RDD[(VertexId, ((Long,Long), List[(Long,Long)]))] = samples.map { case(k,v) =>
-			//~ (k.toLong, ((k.toLong, k.toLong), List[(Long,Long)]()))}
-		//~ val edges = mutualInfo.map{ case ((key1, key2), weight) => Edge(key1.toLong, key2.toLong, new EdgeAttr("BASIC", - weight, -1.toLong))}
-		//~ val graph = Graph(vertices, edges)
-		//~ return graph
-	//~ }
-
-
-	def vertexProg(vid: VertexId, attr: ((Long, Long), (Long, Long)), message: (Long, Long, Double)) = 
+	def sendMessage(triplet: EdgeTriplet[GHSNode, GHSEdge]): Iterator[(VertexId, GHSMessage)] = 
 	{
-		if (message._1 == -1)
-			attr
-		else
+		if (triplet.srcAttr.fragment.id != triplet.dstAttr.fragment.id) 
 		{
-			((attr._1._1, message._2),  attr._2)
-		}
-	}
-	
-	def sendMessage(triplet: EdgeTriplet[((Long,Long), (Long,Long)), Double]):  Iterator[(org.apache.spark.graphx.VertexId, (Long, Long, Double))] = 
-	{
-		if (triplet.srcAttr._1._1 != triplet.dstAttr._1._1){
-			Iterator((triplet.srcId, (triplet.dstAttr._1._1, triplet.dstId, triplet.attr)), (triplet.dstId, (triplet.srcAttr._1._1 ,triplet.srcId, triplet.attr)))
+			val updatedSrcFragment = GHSMessage(GHSNode(Fragment(triplet.dstAttr.fragment.id, triplet.dstId), AddedLink(triplet.srcId, triplet.dstId)), triplet.attr)
+			val updatedDstFragment  = GHSMessage(GHSNode(Fragment(triplet.srcAttr.fragment.id ,triplet.srcId), AddedLink(triplet.srcId, triplet.dstId)), triplet.attr)
+			Iterator((triplet.srcId, updatedSrcFragment), (triplet.dstId, updatedDstFragment))
 		}
 		else
 			Iterator.empty
 	}
 	
-	def mergeMessage(msg1: (Long, Long, Double), msg2: (Long, Long, Double)) = 
+	def mergeMessage(msg1: GHSMessage, msg2: GHSMessage) =
 	{
-		if (msg1._3 < msg2._3)
-			msg1
-		else
-			msg2
-	}		
+		if (msg1.edgeValue.weight < msg2.edgeValue.weight) msg1
+		else if	(msg1.edgeValue.weight == msg2.edgeValue.weight) 
+		{
+			if (msg1.node.addedLink.from < msg2.node.addedLink.from) msg1
+			else if (msg1.node.addedLink.from == msg2.node.addedLink.from)
+			{
+				if (msg1.node.addedLink.to < msg2.node.addedLink.to) msg1
+				else msg2
+			}
+			else msg2
+		}
+		else msg2
+	}	
 		
-	def PregelMST(graph : Graph[((Long, Long), (Long,Long)), Double]) : Graph[((Long, Long), (Long,Long)), Double] = 
+	def setMinFragmentId(graph : Graph[GHSNode, GHSEdge]) : Graph[GHSNode, GHSEdge] = 
 	{
-		val initialMessage = (-1.toLong, -1.toLong, 0.toDouble)
+		val initialMessage = GHSMessage(GHSNode(), GHSEdge(0D))
 		val numIter = 1
-		Pregel(graph, initialMessage,  numIter, EdgeDirection.Both)(
+	
+		graph.pregel(initialMessage, numIter, EdgeDirection.Both)(
 		vprog = vertexProg,
 		sendMsg = sendMessage,
 		mergeMsg = mergeMessage)
 	}
 	
-	def isEmpty[T](rdd : RDD[T]) = {
+	
+	/////////////////////////////////////////////Second phase////////////////////////////////////////////
+	
+	// => compute the minimum edges in a fragment in order to link fragment with the minimum in the fragment
+	def fragmentProg(vid: VertexId, attr: GHSNode, message: GHSMessage) = message.isUnset match 
+	{
+		case true => attr
+		case false =>
+		{
+			if (message.edgeValue.weight < attr.fragment.minWeight)
+				GHSNode(Fragment(attr.fragment.id, attr.fragment.lastFragmentId, message.edgeValue.weight), AddedLink())
+			else if (message.edgeValue.weight ==  attr.fragment.minWeight)
+			{
+				if(message.node.fragment.lastFragmentId < vid)
+					GHSNode(Fragment(attr.fragment.id, attr.fragment.lastFragmentId, message.edgeValue.weight), AddedLink())
+				else
+					GHSNode(Fragment(attr.fragment.id, attr.fragment.lastFragmentId, attr.fragment.minWeight), attr.addedLink)
+			}
+			else
+				GHSNode(Fragment(attr.fragment.id, attr.fragment.lastFragmentId, attr.fragment.minWeight), attr.addedLink)
+		} 
+	}
+
+	def sendInFragmentMessage(triplet: EdgeTriplet[GHSNode, GHSEdge]): Iterator[(VertexId, GHSMessage)] = 
+	{
+		if (triplet.srcAttr.fragment.id == triplet.dstAttr.fragment.id) 
+		{
+				val updatedSrcFragment = GHSMessage(GHSNode(Fragment(triplet.dstAttr.fragment.id, triplet.dstId), AddedLink()), GHSEdge(triplet.dstAttr.fragment.minWeight))
+				val updatedDstFragment = GHSMessage(GHSNode(Fragment(triplet.srcAttr.fragment.id ,triplet.srcId), AddedLink()), GHSEdge(triplet.srcAttr.fragment.minWeight))
+				Iterator((triplet.srcId, updatedSrcFragment), (triplet.dstId, updatedDstFragment))				
+		}
+		else
+			Iterator.empty
+	}
+		
+	def computeMinInFragment(graph : Graph[GHSNode, GHSEdge]) : Graph[GHSNode, GHSEdge] = 
+	{
+		val initialMessage = GHSMessage(GHSNode(), GHSEdge(0D))
+		val numIter = 1
+		
+		graph.pregel(initialMessage, numIter, EdgeDirection.Both)(
+		vprog = fragmentProg,
+		sendMsg = sendInFragmentMessage,
+		mergeMsg = mergeMessage)
+	}
+	
+	
+	/////////////////////////////////////////////Third phase////////////////////////////////////////////
+	
+	// => Update the fragment Id of the elements linking two fragments
+	def updateFragId(vid: VertexId, attr: GHSNode, message: UpdateMessage) = message.isUnset match 
+	{
+		case true => attr
+		case false => GHSNode(Fragment(message.newId, attr.fragment.lastFragmentId), attr.addedLink)
+	}
+
+	def sendUpdateMessage(triplet: EdgeTriplet[GHSNode, GHSEdge]): Iterator[(VertexId, UpdateMessage)] = 
+	{
+		if (triplet.srcAttr.fragment.id < triplet.dstAttr.fragment.id)
+		{
+			if(triplet.srcAttr.addedLink.to == triplet.dstId)
+				Iterator((triplet.dstId, UpdateMessage(triplet.srcAttr.fragment.id)))
+			else if(triplet.dstAttr.addedLink.from == triplet.srcId)
+				Iterator((triplet.dstId, UpdateMessage(triplet.srcAttr.fragment.id)))
+			else
+				Iterator.empty
+		}
+		else if (triplet.srcAttr.fragment.id > triplet.dstAttr.fragment.id)
+		{
+			if(triplet.dstAttr.addedLink.from == triplet.srcId)
+				Iterator((triplet.srcId, UpdateMessage(triplet.dstAttr.fragment.id)))
+			else if(triplet.srcAttr.addedLink.to == triplet.dstId)
+				Iterator((triplet.srcId, UpdateMessage(triplet.dstAttr.fragment.id)))
+			else
+				Iterator.empty
+		}
+		else
+			Iterator.empty
+	}
+		
+	def mergeUpdateMessage(msg1: UpdateMessage, msg2: UpdateMessage) = msg1.newId < msg2.newId match
+	{
+		case true => msg1
+		case _ => msg2
+	}	
+	
+	def updateFragmentId(graph : Graph[GHSNode, GHSEdge]) : Graph[GHSNode, GHSEdge] = 
+	{
+		val initialMessage = UpdateMessage()
+		
+		graph.pregel(initialMessage)(
+		vprog = updateFragId,
+		sendMsg = sendUpdateMessage,
+		mergeMsg = mergeUpdateMessage)
+	}
+	
+	
+	/////////////////////////////////////////////Fourth phase////////////////////////////////////////////
+	
+	// => Update the id of the nodes of a fragment
+	def updateFrag(vid: VertexId, attr: GHSNode, message: UpdateMessage) = message.isUnset match 
+	{
+		case true => attr
+		case false => GHSNode(Fragment(message.newId, message.newId), attr.addedLink)
+	}
+
+	def sendUpdate(triplet: EdgeTriplet[GHSNode, GHSEdge]): Iterator[(VertexId, UpdateMessage)] = 
+	{
+		if (triplet.srcAttr.fragment.id == triplet.dstAttr.fragment.lastFragmentId && triplet.dstAttr.fragment.id < triplet.srcAttr.fragment.id)
+			Iterator((triplet.srcId, UpdateMessage(triplet.dstAttr.fragment.id)))
+		else if (triplet.dstAttr.fragment.id == triplet.srcAttr.fragment.lastFragmentId && triplet.srcAttr.fragment.id < triplet.dstAttr.fragment.id)
+			Iterator((triplet.dstId, UpdateMessage(triplet.srcAttr.fragment.id)))
+		else
+			Iterator.empty
+	}	
+	
+	def updateFragment(graph : Graph[GHSNode, GHSEdge]) : Graph[GHSNode, GHSEdge] = 
+	{
+		val initialMessage = UpdateMessage()
+		
+		graph.pregel(initialMessage)(
+		vprog = updateFrag,
+		sendMsg = sendUpdate,
+		mergeMsg = mergeUpdateMessage)
+	}
+	
+	/////////////////////////////////////////////GHS recursive algorithm////////////////////////////////////////////
+
+	def isEmpty[T](rdd : RDD[T]) = 
+	{
 		rdd.mapPartitions(it => Iterator(!it.hasNext)).reduce(_&&_) 
 	}
 	
-	def mstRec(graph : Graph[((Long, Long), (Long,Long)), Double], finalE : RDD[Edge[Double]], iter : Int = 0) : (Graph[((Long, Long), (Long,Long)), Double]) = 
+	def GHSrec(graph : Graph[GHSNode, GHSEdge], edgeAdded : RDD[Edge[GHSEdge]]) : Graph[GHSNode, GHSEdge] = 
 	{
+		// update the fragment Id and check which is the best edges in a fragment
+		val minFragmentEdgeGraph = computeMinInFragment(graph).cache()
+		// compute the edges to be kept
+		val edges = minFragmentEdgeGraph.vertices.map{ case(vid,node) => Edge(node.addedLink.from, node.addedLink.to, GHSEdge(0D))}.filter{link => link.srcId != -1L}
+		val newSetEdges = (edgeAdded ++ edges).distinct
 		
-		val nodes = graph.aggregateMessages[((Long, Long), (Long, Long))](
-			triplet => {
-				if (triplet.dstId == triplet.srcAttr._1._2.toLong)
-				{
-					if (triplet.srcAttr._1._1 > triplet.dstAttr._1._1)
-						triplet.sendToSrc((triplet.dstAttr._1._1, triplet.dstAttr._1._1), (triplet.dstId, triplet.srcId))
-					else if (triplet.srcAttr._1._1 < triplet.dstAttr._1._1)
-						triplet.sendToSrc((triplet.srcAttr._1._1, triplet.srcAttr._1._1), (triplet.dstId, triplet.srcId))
-
-				}
-				if ( triplet.srcId == triplet.dstAttr._1._2.toLong) 
-				{
-					if (triplet.dstAttr._1._1 > triplet.srcAttr._1._1)
-						triplet.sendToDst((triplet.srcAttr._1._1, triplet.srcAttr._1._1), (triplet.srcId, triplet.dstId))
-					else if (triplet.dstAttr._1._1 < triplet.srcAttr._1._1)
-						triplet.sendToDst((triplet.dstAttr._1._1, triplet.dstAttr._1._1), (triplet.srcId, triplet.dstId))
-				}
-			},
-		(a,b) => a)
-		if (isEmpty(nodes) && iter == 0){
-			return Graph(graph.vertices, finalE)
-		} 
-		if (isEmpty(nodes) && iter != 0) {
-			val edges = nodes.filter{ case (vid, ((vid2, id), (src, dst))) => src < dst}.map{ case (vid, ((vid2, id), (src, dst))) => Edge(src, dst, 0.0)}
-			mstRec(PregelMST(graph), (finalE ++ edges).distinct)}
-		else{
-			val edges = nodes.filter{ case (vid, ((vid2, id), (src, dst))) => src < dst}.map{ case (vid, ((vid2, id), (src, dst))) => Edge(src, dst, 0.0)}
-			val newNodes = graph.vertices.subtractByKey(nodes).union(nodes)
-			val newGraph = (Graph(newNodes, graph.edges))
-			mstRec(newGraph, (finalE ++ edges).distinct, iter + 1)
+		if (isEmpty(edges))
+			return Graph(graph.vertices, newSetEdges)
+		else
+		{
+			val updateFrontierGraph = updateFragmentId(minFragmentEdgeGraph).cache()
+			val updateIdFragment = updateFragment(updateFrontierGraph).mapVertices{ case(vid, node) =>
+				if(node.fragment.id < node.fragment.lastFragmentId) GHSNode(Fragment(node.fragment.id, node.fragment.id), AddedLink())
+				else GHSNode(node.fragment, AddedLink()) }
+			GHSrec(setMinFragmentId(updateIdFragment), newSetEdges)	
 		}
 	}
 	
-	def GHSmst(graph : Graph[((Long, Long), (Long,Long)), Double]) : Graph[((Long, Long), (Long,Long)), Double] = 
+	def GHSMwst(graph : Graph[GHSNode, GHSEdge]) : Graph[GHSNode, GHSEdge] = 
 	{
-		val pregelGraph = PregelMST(graph)
-		val setEdges = pregelGraph.edges.filter(v => v != v)
-		return mstRec(pregelGraph, setEdges)
-		
-	}
-	
-	class Node(samples : Array[Double]) extends java.io.Serializable
-	{
-		var sample = samples
-		var level = -1
-		var Find_count = 0
-		var fragm = None
-		var state = "SLEEPING"
-		var function = ""
-		var best_edge = None
-		var best_wt = 0
-		var test_edge = None
-		var phase = None
-		var state_edge = "BASIC"
-		var parentList = List[Long]()
-		var id : Long = 0
-		
-	}
-	
-	//~ class EdgeAttr() extends java.io.Serializable
-	//~ {
-		//~ var srcState = "BASIC"
-		//~ var dstState = "BASIC"
-		//~ var weight : Double = 0
-		//~ var function = ""
-		//~ var args :List[Float] = List()
-	//~ }
-	class EdgeAttr(branched : String,weightE : Double, attribute : Long) extends java.io.Serializable
-	{
-		var state = branched
-		var attr : Long = attribute
-		var weight : Double = weightE
-	}
-	// other ways to compute different graph with matched older version of the GHS algortihm
-	//~ def GHSGraph(samples : RDD[LabeledPoint], sc : SparkContext) :  Graph[Node, EdgeAttr] = 
-	//~ {
-        //~ val nbNodes = samples.count.toInt
-        //~ val vertices: RDD[(VertexId, Node)] = samples.map {x =>
-			//~ (x.label.toLong, new Node(x.features.toArray))}
-		//~ var label = samples.map(x =>
-			//~ x.label)
-		//~ val cartesianLabel = label.cartesian(label).filter(x => x._1 != x._2)
-		//~ val edges = cartesianLabel.map{ x =>
-			//~ Edge(x._1.toLong, x._2.toLong, new EdgeAttr ())
-		//~ }
-		//~ var graph = Graph(vertices, edges)
-		//~ graph = graph.mapTriplets
-		//~ {
-			//~ triplet => 
-			//~ {
-				//~ triplet.attr.weight = computeMutInfo(triplet)
-				//~ triplet.attr
-			//~ }
-		//~ }
-		//~ return graph
-	//~ }
-	//~ def NodeGraph(samples : RDD[LabeledPoint], sc : SparkContext) :  Graph[Node, Double] = 
-	//~ {
-        //~ val nbNodes = samples.count.toInt
-        //~ val vertices: RDD[(VertexId, Node)] = samples.map {x =>
-			//~ (x.label.toLong, new Node(x.features.toArray))}
-		//~ val label = samples.map(x =>
-			//~ x.label)
-		//~ val cartesianLabel = label.cartesian(label).filter{case (label1, label2) => label1 < label2}
-		//~ val edges = cartesianLabel.map{ x =>
-			//~ Edge(x._1.toLong, x._2.toLong, 0.toDouble)
-		//~ }
-		//~ val graph = Graph(vertices, edges)
-		//~ val weigthGraph = graph.mapTriplets( triplet => computeMutInfo(triplet))
-		//~ return weigthGraph
-	//~ }
-	//~ 
-	//~ val computeMutInfo = (triplet : EdgeTriplet[Node, Double]) =>
-			//~ - mutInfo(triplet.srcAttr.sample, triplet.dstAttr.sample)
-			
-	//~ def vertexProg(vid: VertexId, attr: Node, message: EdgeAttr) = 
-	//~ {
-		//~ println(vid, message.weight)
-		//~ message.function match
-		//~ {
-			//~ case "INIT" =>
-			//~ { 
-				//~ attr.state = "FOUND"
-			//~ }
-			//~ case "WAKEUP" => 
-			//~ {
-				//~ attr.function = "WAKEUP"				
-			//~ }
-			//~ 
-			//~ case _ => None
-			//~ 
-		//~ }
-		//~ attr
-	//~ }
-	//~ 
-	//~ def sendMessage(edge: EdgeTriplet[Node, EdgeAttr]):  Iterator[(org.apache.spark.graphx.VertexId, EdgeAttr)] = 
-	//~ {
-		//~ println(edge.attr.weight, edge.srcId, edge.dstId)
-		//~ edge.attr.function match
-		//~ {
-			//~ case "" => 
-			//~ {
-				//~ edge.attr.function = "WAKEUP"
-				//~ Iterator((edge.dstId, edge.attr))
-//~ 
-			//~ }
-			//~ 
-			//~ case "WAKEUP" => 
-			//~ {
-				//~ edge.attr.function = "CONNECT"
-				//~ edge.attr.srcState = "BRANCH"
-				//~ edge.attr.args = List(edge.srcAttr.level)
-				//~ Iterator((edge.dstId, edge.attr))
-			//~ }
-//~ 
-			//~ 
-			//~ case _ => Iterator.empty
-			//~ 
-		//~ }
-	//~ }
-	//~ 
-	//~ def mergeMessage(msg1: EdgeAttr, msg2: EdgeAttr) = 
-	//~ {
-		//~ if (msg1.weight < msg2.weight)
-			//~ msg2
-		//~ else
-			//~ msg1
-	//~ }		
-		//~ 
-	//~ val initialMessage = new EdgeAttr()
-	//~ initialMessage.function = "INIT"
-	//~ def PregelMST(graph : Graph[Node, EdgeAttr]) : Graph[Node, EdgeAttr] = 
-	//~ {
-		//~ Pregel(graph, initialMessage, activeDirection = EdgeDirection.Either)(
-		//~ vprog = vertexProg,
-		//~ sendMsg = sendMessage,
-		//~ mergeMsg = mergeMessage)
-	//~ }
+		// set an emptyRDD to be the acc in the GHSrec, maybe it is better to use EmptyRDD
+		val setEdges = graph.edges.filter(v => v != v)
+		return GHSrec(setMinFragmentId(graph), setEdges)
+	}	
 }
-	
-	
+
+
+

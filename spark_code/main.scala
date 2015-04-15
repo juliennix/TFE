@@ -5,9 +5,7 @@
 ///////////////////////////////////////////////////////////////// 
 
 import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
-import org.apache.spark.graphx._
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
 
@@ -19,8 +17,11 @@ import graphicalLearning.Kruskal._
 import graphicalLearning.Network._	
 import graphicalLearning.Boruvka._
 import graphicalLearning.GHS._
-import graphicalLearning.Inference._
-
+//~ import graphicalLearning.MarkovTree._
+import graphicalLearning.MarkovTreeProposition._
+//~ import graphicalLearning.Inference._
+import graphicalLearning.InferenceProposition._
+import graphicalLearning.MixtureTree._
 
 object Main {
     def main(args:Array[String]) = 
@@ -43,7 +44,7 @@ object Main {
         print("Please enter your name's textfile : " )
         //~ val filename = Console.readLine
         //~ val filename = "simple_labeled"
-        val filename = "simple_labeled"
+        val filename = "50nodes"
         
         print("Please enter your label delimiter in this file : " )
         //~ val labeldelimiter = Console.readLine
@@ -88,37 +89,37 @@ object Main {
         val fullGraph2 = RDDfastFullGraph(content, sc).cache
 
 		// MWST ALGORITHMS (first) //
-		// Could return graphs directly indeed
+		// Those algorithm compute the mwst partially on the local driver
+		// see comment of those functions to know the degree of distribution
 		
 		// Kruskal
-        val kruskalSetEdges = kruskal(graph4)
-        val kruskalGraph = graph4.subgraph(e => kruskalSetEdges.contains(e), (v,d) => true)
-        
+        val kruskalGraph = kruskalEdgesAndVertices(graph4)
+        val kruskalGraph2 = kruskalEdges(graph4)
+                
         // Prim
-        val primSetEdges = PrimsAlgo(graph4)
-        val primGraph = graph4.subgraph(e => primSetEdges.contains(e), (v,d) => true)
+        val primGraph = PrimsAlgo(graph4)
         
         // Boruvka
-        val boruvkaSetEdges = boruvkaAlgo(graph4)
-        val boruvkaGraph = graph4.subgraph(e => boruvkaSetEdges.contains(e), (v,d) => true)
+        val boruvkaGraph = boruvkaAlgo(graph4)
+
 
         // MWST ALGORITHMS (second) //
         
         // Kruskal
-        val kruskalEdgeRDD = kruskalDist(graph4)
-        val kruskalGraph2 = Graph(graph4.vertices, kruskalEdgeRDD)
+        val kruskalGraph3 = kruskalEdgeRDD(graph4)
         
         // Prim
-        val primEdgeRDD = PrimsRDD(graph4)
-        val primGraph2 = Graph(graph4.vertices, primEdgeRDD)
+        val primGraph2 = PrimsDistFuncEdge(graph4)
+        val primGraph3 = PrimsEdge(graph4)
+        val primGraph4 = PrimsRDD(graph4)
+        
         
         // Boruvka
-        val boruvkaEdgeRDD = boruvkaDistAlgo(graph4)
-        val boruvkaGraph2 = Graph(graph4.vertices, boruvkaEdgeRDD)
+        val boruvkaGraph2 = boruvkaDistAlgo(graph4)
                 
         // GHS
-        val MessageGraph = GHSGraph(content, sc)
-        val GHSMwstGraph = GHSmst(MessageGraph)
+        val messageGraph = GHSGraph(content, sc)
+        val GHSMwstGraph = GHSMwst(messageGraph)
         
         // DISPLAY GRAPHS //
         
@@ -126,10 +127,19 @@ object Main {
         
         // MARKOVTREE CREATION // 
 
-        val markovTree = orientedGraph(kruskalGraph2)
-        val markovTreeSetUp = setUpMarkovTree(markovTree, content)
-        // TIME COMPUTATION //
+        val markovTree = markovTreeCreation(GHSMwstGraph)
+        val markovTreeSetUp = learnParameters(markovTree, content)
         
+        // MIXTURE TREE BY BOOTSTRAPING 
+        
+        val numberOfTree = 50
+        val mixtureTree = createMixtureWithBootstrap(sc, content, numberOfTree)
+        
+        // INFERENCE ON THE MIXTURE (INFERENCE PER TREE AND THEN AVERAGING)
+        
+        
+        
+        // TIME COMPUTATION //
         val t2 = System.currentTimeMillis
 		// Compute the time (in ms) of the main file
         println((t2 - t1) + " msecs")

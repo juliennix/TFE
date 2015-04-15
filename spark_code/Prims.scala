@@ -4,50 +4,79 @@
 // Prim's algorithm                                            //
 ///////////////////////////////////////////////////////////////// 
 
+
 package graphicalLearning
 
+import scala.util.control.Breaks._
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.rdd.EmptyRDD
-import util.control.Breaks._
-import org.apache.spark.graphx._
-import graphicalLearning.DistributedGraph._
-import graphicalLearning.GHS._
+import org.apache.spark.graphx.Edge
+import org.apache.spark.graphx.Graph
+import scala.reflect.ClassTag
 //~ import scalaz._ 
 
-object Prims {
+
+object Prims extends Serializable
+{
 	
-	// no collect here but the edges and vertices are in the local driver
-	def PrimsAlgo[A](graph : Graph[A, Double])  : Set[Edge[Double]] = 
+	// This version is done in a functional fashion only through RDD. Could create also a keys-values RDD and filter it
+	// in order to not take all the edges att each step
+	def rPrim( nbNodes : Int, iter : Int = 0,  finalE : RDD[Edge[Double]], joinedVE : RDD[(Int, (Set[Long], Edge[Double]))]) : RDD[Edge[Double]] = 
 	{
-		var setVertices = Set[Long](graph.vertices.first._1)
-		var setEdges = Set[Edge[Double]]()
-		
-		// A fibonacci heap is usually used in sequential Prim's algo
-		// No distributed version exists and it is pointless since the 
-		// minimum function here is done on an rdd actually
-		//~ var h = Heap[(VertexId, Node)]()
-		
-		for (i <- 0 to graph.vertices.count.toInt - 2)
-		{
-			// could try on a total graph and using other way to produce a "growing tree"
-			var edge = graph.subgraph(e => (setVertices.contains(e.srcId) && !setVertices.contains(e.dstId))
-											|| (!setVertices.contains(e.srcId) && setVertices.contains(e.dstId))
-											//&& !setEdges.contains(e), (v,d) => true
-											).edges.min()(Ordering.by(e => e.attr))
-
-			setVertices += edge.srcId 
-			setVertices += edge.dstId 
-			setEdges += edge
+		if ( iter == nbNodes - 1) return finalE
+		else {
+			val min = joinedVE.filter{ case (key, (set, edge)) => (set.contains(edge.srcId) && !set.contains(edge.dstId)) ||
+								  (!set.contains(edge.srcId) && set.contains(edge.dstId))}.reduceByKey{ case ((set1,edge1), (set2,edge2)) => 
+								  { if (edge1.attr < edge2.attr) (set1,edge1) else (set2,edge2)}}
+								  
+			val edge = min.map{ case (key, (set, edge)) => edge}
+			val newJoined = joinedVE.join(min).map{ case ( key, ((set , edge), (set2, newEdge))) => (key, (set ++ Set(newEdge.srcId) ++ Set(newEdge.dstId), edge))}
+			rPrim(nbNodes, iter +1, finalE ++ edge, newJoined)
 		}
-
-		return setEdges
+	} 	
+	def PrimsRDD[VD: ClassTag](graph : Graph[VD, Double]) : Graph[VD, Double]  = 
+	{
+		val nbNodes = graph.vertices.count.toInt
+		val label = graph.vertices.first._1 
+		val keyV = graph.vertices.filter(x => x._1 == label).map(x => x._1).map(x => (1,Set(x)))
+		val keyE = graph.edges.map(x => (1, x))
+		val joinedVE = keyV.join(keyE) 
+		val finalE = graph.edges.filter(e => e != e)
+		return Graph(graph.vertices, rPrim(nbNodes, 0, finalE, joinedVE))	
+	}
+	
+	// This version is done in a functional fashion but the edge at each step still taken on the local drive. Could create also a keys-values RDD and filter it
+	// in order to not take all the edges att each step
+	def recPrim(nbNodes : Int, iter : Int = 0,  finalE : RDD[Edge[Double]], keyV : RDD[(Int, Set[Long])], keyE : RDD[(Int, Edge[Double])]) : RDD[Edge[Double]] = 
+	{
+		
+		if ( iter == nbNodes - 1) finalE
+		else {
+			val joinedVE = keyV.join(keyE).map{ case (key, value) => value}
+			val edge = joinedVE.filter{ case (set, edge) => (set.contains(edge.srcId) && !set.contains(edge.dstId)) ||
+								  (!set.contains(edge.srcId) && set.contains(edge.dstId))}.reduceByKey((v1,v2) => 
+								  { if (v1.attr < v2.attr) v1 else v2}).map{ case (set, edge) => edge}
+								 
+			val src = edge.first.srcId
+			val dst = edge.first.dstId
+			val newKV = keyV.map(x => (x._1, x._2 ++ Set(src) ++ Set(dst)))
+			recPrim(nbNodes, iter +1, finalE ++ edge, newKV, keyE)
+		}
+	} 	
+	def PrimsDistFuncEdge[VD: ClassTag](graph : Graph[VD, Double]) : Graph[VD, Double]  = 
+	{
+		val nbNodes = graph.vertices.count.toInt
+		val label = graph.pickRandomVertex()
+		val keyV = graph.vertices.filter(x => x._1 == label).map(x => x._1).map(x => (1,Set(x)))
+		val keyE = graph.edges.map(x => (1, x))
+		val finalE = graph.edges.filter(e => e != e)
+		return Graph(graph.vertices, recPrim(nbNodes, 0, finalE, keyV, keyE)) 	
 	}
 
 	// The only element on the local drive here is the edge computed thanks to the min method on an RDD
 	// keys-values are used with join/filter... methods to construct RDD containing the correct edges
-	def PrimsDistAlgo(graph : Graph[Node, Double]) : RDD[Edge[Double]]  = 
+	def PrimsEdge[VD: ClassTag](graph : Graph[VD, Double]) : Graph[VD, Double]  = 
 	{
 		val nbNodes = graph.vertices.count.toInt
 		val label = graph.pickRandomVertex()
@@ -74,7 +103,6 @@ object Prims {
 		//~ 
 		for (i <- 0 to nbNodes - 3)
 		{
-			keyV.foreach(v => println(v))
 			val joinedVE = keyV.join(keyE).map(a => a._2)
 			// Find the minimum Edge
 			val edge = joinedVE.filter(VE => (VE._1.contains(VE._2.srcId) && !VE._1.contains(VE._2.dstId)) ||
@@ -90,63 +118,33 @@ object Prims {
 			keyV = keyV.map(x => (x._1, x._2 ++ Set(src) ++ Set(dst)))
 			//~ keyV.foreach(v => println(v))
 		}
-		return finalE	
+		return Graph(graph.vertices, finalE)	
 	}
 
-	// This version is done in a functional fashion only through RDD. Could create also a keys-values RDD and filter it
-	// in order to not take all the edges att each step
-	def rPrim( nbNodes : Int, iter : Int = 0,  finalE : RDD[Edge[Double]], joinedVE : RDD[(Int, (Set[Long], Edge[Double]))]) : RDD[Edge[Double]] = 
+	// The edges and vertices are in the local driver
+	def PrimsAlgo[VD: ClassTag](graph : Graph[VD, Double])  : Graph[VD, Double] = 
 	{
-		if ( iter == nbNodes - 1) return finalE
-		else {
-			val min = joinedVE.filter{ case (key, (set, edge)) => (set.contains(edge.srcId) && !set.contains(edge.dstId)) ||
-								  (!set.contains(edge.srcId) && set.contains(edge.dstId))}.reduceByKey{ case ((set1,edge1), (set2,edge2)) => 
-								  { if (edge1.attr < edge2.attr) (set1,edge1) else (set2,edge2)}}
-								  
-			val edge = min.map{ case (key, (set, edge)) => edge}
-			val newJoined = joinedVE.join(min).map{ case ( key, ((set , edge), (set2, newEdge))) => (key, (set ++ Set(newEdge.srcId) ++ Set(newEdge.dstId), edge))}
-			rPrim(nbNodes, iter +1, finalE ++ edge, newJoined)
-		}
-	} 	
-	def PrimsRDD[A](graph : Graph[A, Double]) : RDD[Edge[Double]]  = 
-	{
-		val nbNodes = graph.vertices.count.toInt
-		val label = graph.vertices.first._1 
-		val keyV = graph.vertices.filter(x => x._1 == label).map(x => x._1).map(x => (1,Set(x)))
-		val keyE = graph.edges.map(x => (1, x))
-		val joinedVE = keyV.join(keyE) 
-		val finalE = graph.edges.filter(e => e != e)
-		return rPrim(nbNodes, 0, finalE, joinedVE) 	
-	}
-	
-	// This version is done in a functional fashion but the edge at each step still taken on the local drive. Could create also a keys-values RDD and filter it
-	// in order to not take all the edges att each step
-	def recPrim( nbNodes : Int, iter : Int = 0,  finalE : RDD[Edge[Double]], keyV : RDD[(Int, Set[Long])], keyE : RDD[(Int, Edge[Double])]) : RDD[Edge[Double]] = 
-	{
+		var setVertices = Set[Long](graph.vertices.first._1)
+		var setEdges = Set[Edge[Double]]()
 		
-		if ( iter == nbNodes - 1) finalE
-		else {
-			val joinedVE = keyV.join(keyE).map{ case (key, value) => value}
-			val edge = joinedVE.filter{ case (set, edge) => (set.contains(edge.srcId) && !set.contains(edge.dstId)) ||
-								  (!set.contains(edge.srcId) && set.contains(edge.dstId))}.reduceByKey((v1,v2) => 
-								  { if (v1.attr < v2.attr) v1 else v2}).map{ case (set, edge) => edge}
-								 
-			val src = edge.first.srcId
-			val dst = edge.first.dstId
-			val newKV = keyV.map(x => (x._1, x._2 ++ Set(src) ++ Set(dst)))
-			recPrim(nbNodes, iter +1, finalE ++ edge, newKV, keyE)
+		// A fibonacci heap is usually used in sequential Prim's algo
+		// No distributed version exists and it is pointless since the 
+		// minimum function here is done on an rdd actually
+		//~ var h = Heap[(VertexId, Node)]()
+		
+		for (i <- 0 to graph.vertices.count.toInt - 2)
+		{
+			// could try on a total graph and using other way to produce a "growing tree"
+			var edge = graph.subgraph(e => (setVertices.contains(e.srcId) && !setVertices.contains(e.dstId))
+											|| (!setVertices.contains(e.srcId) && setVertices.contains(e.dstId))
+											//&& !setEdges.contains(e), (v,d) => true
+											).edges.min()(Ordering.by(e => e.attr))
+
+			setVertices += edge.srcId 
+			setVertices += edge.dstId 
+			setEdges += edge
 		}
-	} 	
-	def PrimsDistAlgoRec[A](graph : Graph[A, Double]) : RDD[Edge[Double]]  = 
-	{
-		val nbNodes = graph.vertices.count.toInt
-		// this method does not work when generic type is used, not find yet a way to use it
-		//~ val label = graph.pickRandomVertex()
-		val label = graph.vertices.first._1 
-		val keyV = graph.vertices.filter(x => x._1 == label).map(x => x._1).map(x => (1,Set(x)))
-		val keyE = graph.edges.map(x => (1, x))
-		val finalE = graph.edges.filter(e => e != e)
-		return recPrim(nbNodes, 0, finalE, keyV, keyE) 	
+        return graph.subgraph(e => setEdges.contains(e), (v,d) => true)
 	}
 
 	// Algorithm from a discusion on a google forum https://groups.google.com/forum/#!topic/spark-users/KBWyiNDl-kY
