@@ -69,7 +69,7 @@ case class Evidence(event : Double = -1D, prob : Probability = Probability(-1D))
 
 object InferenceProposition extends Serializable
 { 
-	def inference(markovTreeSetUp : Graph[MarkovNode, Double], evidenceSet : EvidenceSet) =
+	def inference(markovTreeSetUp : Graph[MarkovNode, Double], evidenceSet : EvidenceSet) : Graph[SecondPhaseNode, Double] =
 	{
 		// Compute the leaves and root
 		val max_depth = markovTreeSetUp.vertices.max()(Ordering.by{case (vid, node) => node.level})._2.level
@@ -132,6 +132,8 @@ object InferenceProposition extends Serializable
 		vprog = NodeUpdate,
 		sendMsg = update,
 		mergeMsg = combine)
+		
+		return inferedTree
 	}
 
 
@@ -153,7 +155,11 @@ object InferenceProposition extends Serializable
 	
 	def NodeLambdaUpdate(vid: VertexId, attr: FirstPhaseNode, message: FirstPhaseMessage) = 
 	{
-		if (message.lambda.isEmpty) FirstPhaseNode(attr.level, message.algoLevel, attr.state, attr.cpt, attr.lambda, attr.pi)
+		if (message.lambda.isEmpty) 
+		{
+			if(attr.state == "leaf") FirstPhaseNode(attr.level, message.algoLevel, attr.state, attr.cpt, attr.lambda, attr.pi, true)
+			else FirstPhaseNode(attr.level, message.algoLevel, attr.state, attr.cpt, attr.lambda, attr.pi)
+		}
 		else
 		{ 
 			if (attr.lambda.isEmpty) FirstPhaseNode(attr.level, message.algoLevel, attr.state, attr.cpt, message.lambda, attr.pi, true)
@@ -165,6 +171,7 @@ object InferenceProposition extends Serializable
 	{
 		if(triplet.dstAttr.activeNode)
 		{
+			println(triplet.dstAttr)
 			if (triplet.dstAttr.state == "leaf") 
 			{
 				if (triplet.dstAttr.level == triplet.dstAttr.algoLevel)
@@ -174,17 +181,18 @@ object InferenceProposition extends Serializable
 				else
 					Iterator((triplet.dstId, FirstPhaseMessage(Map[Double,Probability](), triplet.dstAttr.algoLevel - 1)))
 			}
-			else Iterator.empty
+			else
+			{
+				if (triplet.dstAttr.level == triplet.dstAttr.algoLevel)
+					Iterator((triplet.srcId, FirstPhaseMessage(triplet.dstAttr.cpt.map{ case (jointEvent, prob) => 
+							((jointEvent.variable, jointEvent.condition), prob.value * triplet.dstAttr.lambda(jointEvent.variable).value)}.groupBy(_._1._2).map{case (k, tr) => 
+								(k,Probability(tr.values.reduce(_+_)))}, triplet.dstAttr.algoLevel - 1)))
+				else
+					Iterator.empty
+			}
 		}
 		else
-		{
-			if (triplet.dstAttr.level == triplet.dstAttr.algoLevel)
-				Iterator((triplet.srcId, FirstPhaseMessage(triplet.dstAttr.cpt.map{ case (jointEvent, prob) => 
-						((jointEvent.variable, jointEvent.condition), prob.value * triplet.dstAttr.lambda(jointEvent.variable).value)}.groupBy(_._1._2).map{case (k, tr) => 
-							(k,Probability(tr.values.reduce(_+_)))}, triplet.dstAttr.algoLevel - 1)))
-			else
-				Iterator.empty
-		}
+			Iterator.empty
 	}
 
 	def combineLambda(lambda1 : FirstPhaseMessage, lambda2 : FirstPhaseMessage ): FirstPhaseMessage = 

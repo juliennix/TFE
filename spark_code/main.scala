@@ -21,6 +21,7 @@ import graphicalLearning.GHS._
 import graphicalLearning.MarkovTreeProposition._
 //~ import graphicalLearning.Inference._
 import graphicalLearning.InferenceProposition._
+import graphicalLearning.EvidenceSet
 import graphicalLearning.MixtureTree._
 
 object Main {
@@ -44,7 +45,7 @@ object Main {
         print("Please enter your name's textfile : " )
         //~ val filename = Console.readLine
         //~ val filename = "simple_labeled"
-        val filename = "50nodes"
+        val filename = "5nodes"
         
         print("Please enter your label delimiter in this file : " )
         //~ val labeldelimiter = Console.readLine
@@ -129,6 +130,11 @@ object Main {
 
         val markovTree = markovTreeCreation(GHSMwstGraph)
         val markovTreeSetUp = learnParameters(markovTree, content)
+        
+        // INFERENCE
+        
+        val evidence = EvidenceSet()
+        val inferedMarkovTree = inference(markovTreeSetUp, evidence)
         
         // MIXTURE TREE BY BOOTSTRAPING 
         
