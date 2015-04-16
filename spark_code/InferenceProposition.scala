@@ -171,7 +171,6 @@ object InferenceProposition extends Serializable
 	{
 		if(triplet.dstAttr.activeNode)
 		{
-			println(triplet.dstAttr)
 			if (triplet.dstAttr.state == "leaf") 
 			{
 				if (triplet.dstAttr.level == triplet.dstAttr.algoLevel)
