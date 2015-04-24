@@ -150,10 +150,10 @@ object Boruvka extends Serializable
 						{
 							if (srcFound && dstFound)
 								break
-							else if (!srcFound && setVertices(i).contains(src)){
+							if (!srcFound && setVertices(i).contains(src)){
 								indexSrc = i
 								srcFound = true}
-							else if (!dstFound && setVertices(i).contains(dst)){
+							if (!dstFound && setVertices(i).contains(dst)){
 								indexDst = i
 								dstFound = true}
 						}

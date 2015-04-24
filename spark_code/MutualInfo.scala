@@ -20,7 +20,7 @@ object MutualInfo extends Serializable
 		val precision = 8 // number of decimal digits
 		val keyValue = samples.cartesian(samples).filter{ case ((key1, val1), (key2, val2)) => key1 < key2}
 		return keyValue.map{ case ((key1, val1), (key2, val2)) => {
-			((key1,key2) , truncateAt(entropy(val1) - conditionalEntropy(val1, val2), precision))
+			((key1,key2) , truncateAt(entropy(val1), precision) - truncateAt(conditionalEntropy(val1, val2), precision))
 			}
 		}
 	}
@@ -30,7 +30,7 @@ object MutualInfo extends Serializable
 		val precision = 8 // number of decimal digits
 		val keyValue = samples.cartesian(samples).filter{ case ((key1, val1), (key2, val2)) => key1 != key2}
 		return keyValue.map{ case ((key1, val1), (key2, val2)) => {
-			((key1,key2) , truncateAt( entropy(val1) - conditionalEntropy(val1, val2), precision))
+			((key1,key2) , truncateAt(entropy(val1), precision) - truncateAt(conditionalEntropy(val1, val2), precision))			
 			}
 		}
 	}
@@ -40,8 +40,8 @@ object MutualInfo extends Serializable
     def mutInfo(variable : RDD[LabeledPoint], condition : RDD[LabeledPoint]): Double = 
     {
 		val precision = 8 // number of decimal digits
-        val result = entropy(variable.first.features.toArray) - conditionalEntropy(variable.first.features.toArray, condition.first.features.toArray)
-        return truncateAt(result, precision)
+        val result = truncateAt(entropy(variable.first.features.toArray), precision) - truncateAt(conditionalEntropy(variable.first.features.toArray, condition.first.features.toArray), precision)
+        return result
     } 
 
 	// Wanted to compute in a more efficient way by passing the length and not computing multiple times and computing
@@ -49,8 +49,8 @@ object MutualInfo extends Serializable
     def mutInfo(length : Int, data : RDD[LabeledPoint], variableLabel : Long, conditionLabel : Long): Double = 
     {
 		val precision = 8 // number of decimal digits
-        val result = entropy(length, data, variableLabel) - conditionalEntropy(length, data, variableLabel, conditionLabel)
-        return truncateAt(result, precision)
+        val result = truncateAt(entropy(length, data, variableLabel), precision) - truncateAt(conditionalEntropy(length, data, variableLabel, conditionLabel), precision)
+        return result
     } 
  
     // Used by the "after" graph in order to compute the mutual information knowing that each sample is stored
@@ -58,8 +58,8 @@ object MutualInfo extends Serializable
     def mutInfo(variable : Array[Double], condition : Array[Double]): Double = 
     {
 		val precision = 8 // number of decimal digits
-        val result = entropy(variable) - conditionalEntropy(variable, condition)
-        return truncateAt(result, precision)
+        val result = truncateAt(entropy(variable), precision) - truncateAt(conditionalEntropy(variable, condition), precision)
+        return result
     } 
      
 	def truncateAt(n: Double, p: Int): Double = { val s = math pow (10, p); (math floor n * s) / s }     
@@ -87,7 +87,7 @@ object MutualInfo extends Serializable
         val freq = l.groupBy(x=>x).mapValues(_.size.toDouble/length)
         
         return freq.values.map{ x =>
-            -x * math.log(x) / math.log(2)}.reduce(_+_)
+            -x * (math.log(x) / math.log(2))}.reduce(_+_)
     }           
 	
 	def mapFunction(length : Int, variable : Array[Double], condition : Array[Double], i :Int = 0, conjMap : Map[(Double,Double), Int] = Map()) : Map[(Double,Double), Int] = 
@@ -186,6 +186,12 @@ object MutualInfo extends Serializable
             }.reduce(_+_)
     }
     
+	def probability(l : Array[Double]): Map[Double, Probability] = 
+    {
+        val length = l.length
+        val freq = l.groupBy(x=>x).mapValues(v => Probability(v.size.toDouble/length))
+        return freq.map{ x => x}
+    }   
 
     
 }

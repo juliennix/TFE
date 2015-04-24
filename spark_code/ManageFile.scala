@@ -11,10 +11,16 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 import java.io._
+import scala.io.Source
 import math.random
 
 object ManageFile extends Serializable
 {   
+	
+	def getLineNumber(fileName: String) : Int = 
+	{
+		scala.io.Source.fromFile(fileName).getLines.size
+	}
 	// Functions which takes an adequate file and its delimiter between 
 	// label and the sample and a delimiter for the sample itself
 	// Return an RDD[(Double, Array[Double])] where the FLoat corresponds
@@ -102,9 +108,9 @@ object ManageFile extends Serializable
 		for (line <- 0 to nbSample - 1)
 		{
 			str = line.toString + 	","
-			for (element <- 0 to sampleLength)
+			for (element <- 0 to sampleLength - 1)
 			{				 
-				if (element == sampleLength)
+				if (element == sampleLength - 1)
 					str = str + ((random * (to - from)) + from).round.toString
 				else 
 					str = str + ((random * (to - from)) + from).round.toString + " "

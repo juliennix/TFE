@@ -21,7 +21,7 @@ import graphicalLearning.MutualInfo._
 object Kruskal extends Serializable
 {
 	
- 	// Kruskal algortihm in a functional fashion with only the first minimum weight edge taken on the local drive.
+ 	// Kruskal algortihm in a functional fashion with only the first minimum weight edge and the src/dst key are taken on the local drive.
 	def recKruskal(edges : RDD[Edge[Double]], finalE : RDD[Edge[Double]], vertices : RDD[(Long,Long)], length : Int, i : Int = 0) : RDD[Edge[Double]] =
 	{
 		if (i == length) return finalE
@@ -109,10 +109,10 @@ object Kruskal extends Serializable
 					{
 						if (srcFound && dstFound)
 							break
-						else if (!srcFound && setVertices(i).contains(src)){
+						if (!srcFound && setVertices(i).contains(src)){
 							indexSrc = i
 							srcFound = true}
-						else if (!dstFound && setVertices(i).contains(dst)){
+						if (!dstFound && setVertices(i).contains(dst)){
 							indexDst = i
 							dstFound = true}
 					}

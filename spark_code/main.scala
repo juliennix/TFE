@@ -17,12 +17,12 @@ import graphicalLearning.Kruskal._
 import graphicalLearning.Network._	
 import graphicalLearning.Boruvka._
 import graphicalLearning.GHS._
-//~ import graphicalLearning.MarkovTree._
-import graphicalLearning.MarkovTreeProposition._
-//~ import graphicalLearning.Inference._
-import graphicalLearning.InferenceProposition._
+import graphicalLearning.MarkovTree._
+import graphicalLearning.Inference._
 import graphicalLearning.EvidenceSet
 import graphicalLearning.MixtureTree._
+import graphicalLearning.Resample._
+import graphicalLearning.Plot._
 
 object Main {
     def main(args:Array[String]) = 
@@ -45,7 +45,7 @@ object Main {
         print("Please enter your name's textfile : " )
         //~ val filename = Console.readLine
         //~ val filename = "simple_labeled"
-        val filename = "5nodes"
+        val filename = "10nodes"
         
         print("Please enter your label delimiter in this file : " )
         //~ val labeldelimiter = Console.readLine
@@ -114,7 +114,6 @@ object Main {
         val primGraph3 = PrimsEdge(graph4)
         val primGraph4 = PrimsRDD(graph4)
         
-        
         // Boruvka
         val boruvkaGraph2 = boruvkaDistAlgo(graph4)
                 
@@ -131,6 +130,11 @@ object Main {
         val markovTree = markovTreeCreation(GHSMwstGraph)
         val markovTreeSetUp = learnParameters(markovTree, content)
         
+        // DISPLAY TREE //
+        
+        val root = markovTree.vertices.filter{ case (key, markovNode) => markovNode.level == 0}.first._1
+        treeCreation(markovTree.edges.collect, root.toString)
+        
         // INFERENCE
         
         val evidence = EvidenceSet()
@@ -138,12 +142,22 @@ object Main {
         
         // MIXTURE TREE BY BOOTSTRAPING 
         
-        val numberOfTree = 50
+        val numberOfTree = 5
         val mixtureTree = createMixtureWithBootstrap(sc, content, numberOfTree)
-        
+        val inferedMixture = getInferedProbability(mixtureTree, evidence, numberOfTree)
+     
+		val (train, test) = getTrainAndTestSet(content)
+		
+		val trainGraph = GHSGraph(train, sc)
+        val GHSMwstGraph2 = GHSMwst(trainGraph)
+
         // INFERENCE ON THE MIXTURE (INFERENCE PER TREE AND THEN AVERAGING)
         
-        
+        // TEST 
+        val fileNames = Array[String]("5nodes", "10nodes", "20nodes", "50nodes", "100nodes", "200nodes", "350nodes", "500nodes")
+        val repeat = 1
+        val method = Array[Int](1,3,5,6,7,8,10)
+        computationTimeChart(fileNames, repeat, method, sc)
         
         // TIME COMPUTATION //
         val t2 = System.currentTimeMillis

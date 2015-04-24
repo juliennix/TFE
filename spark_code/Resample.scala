@@ -8,6 +8,7 @@ package graphicalLearning
 
 import java.nio.ByteBuffer
 import java.util.{Random => JavaRandom}
+import scala.util.Random.shuffle
 import scala.util.hashing.MurmurHash3
 
 import org.apache.spark.rdd.RDD
@@ -30,6 +31,23 @@ object Resample extends Serializable
 			(key, arr.map( element =>
 					arr((rng.nextDouble*(length-1)).round.toInt)))
 		}
+	}
+	
+	def getTrainAndTestSet(content : RDD[(Double, Array[Double])]) : (RDD[(Double, Array[Double])] , RDD[(Double, Array[Double])]) =
+	{
+        val arrSize = content.first._2.length.toDouble
+        val percentage = 0.6
+        val trainPercentage = (arrSize*percentage).round.toInt
+        val setIndex = shuffle((0D to arrSize-1 by 1D).take(trainPercentage).toSet)
+		val trainAndTest = content.map{ case (key, arr) => 
+			{
+				val zipedArr = arr.zipWithIndex
+				(key, zipedArr.filter{ case(value, index) => setIndex.contains(index)}.map(arr => arr._1), zipedArr.filter{ case(value, index) => !setIndex.contains(index)}.map(arr => arr._1))
+			}
+		}
+		val train = trainAndTest.map{ case(key, trainArr, testArr) => (key, trainArr)}
+		val test = trainAndTest.map{ case(key, trainArr, testArr) => (key, testArr)}
+		(train, test)
 	}
 	
 	/**

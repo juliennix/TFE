@@ -26,3 +26,4 @@ libraryDependencies += "org.apache.spark" % "spark-mllib_2.10" % "1.2.1"
 
 libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.1.1"
 
+libraryDependencies += "org.jfree" % "jfreechart" % "1.0.14"
