@@ -3,8 +3,11 @@ Learning Graphical Probabilistic Models
 =======================================
 ### How to Run
 Use sbt to package the code, type in the shell :
+
 $ sbt
-> package
+
+\> package
+
 When the package is done, you are ready to launch and use it
 
 In order to run it in the spark shell, type in the shell : 
