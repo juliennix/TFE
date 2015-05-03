@@ -17,6 +17,8 @@ import graphicalLearning.GHS._
 import graphicalLearning.MarkovTree._
 import graphicalLearning.Inference._
 import graphicalLearning.MixtureTree._
+import graphicalLearning.TestMethod._
+import graphicalLearning.Resample._
 
 import org.jfree.chart.{ChartFactory, ChartPanel}
 import org.jfree.chart.ChartFactory.createXYLineChart
@@ -174,6 +176,39 @@ object Plot
 	 	frame.pack()
 		frame.setVisible(true)
 	}
+	
+	def KLDivergenceChart(content : RDD[(Double, Array[Double])], begin : Int, end : Int, step : Int, sc : SparkContext) = 
+	{
+		val chartTitle = ""
+		val xAxisLabel = "number of trees"
+		val yAxisLabel = "Kullback-Leibler divergence (in bits)"
+	 
+	 	val (train, test) = getTrainAndTestSet(content)
+	 	
+		val serie = new XYSeries("")	
+		val dataset = new XYSeriesCollection()
+		for(numberOfTree  <- begin to end by step)
+		{
+			val evidence = EvidenceSet()
+			val mixtureTree = createMixtureWithBootstrap(sc, train, numberOfTree)
+			val inferedProb = getInferedProbability(mixtureTree, evidence, numberOfTree)
+			val score = KLDivergence(inferedProb, test)
+			println(numberOfTree, score)
+			serie.add(numberOfTree, score)
+		}
+
+		dataset.addSeries(serie)
+
+		val frame = new ChartFrame(
+		"Plot Windows",
+		ChartFactory.createXYLineChart(chartTitle,
+		        xAxisLabel, yAxisLabel, dataset, PlotOrientation.VERTICAL, false, false, false)
+	 	)
+	 	frame.pack()
+		frame.setVisible(true)
+	}
+	
+	    
 }
 
 

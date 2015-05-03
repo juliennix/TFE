@@ -191,4 +191,14 @@ object DistributedGraph extends Serializable
 		val graph = Graph(vertices, edges)
 		return graph
 	}
+	
+	def GHSWeightedGraph(samples :  RDD[(Double, Array[(Double, Probability)])], sc : SparkContext) :  Graph[GHSNode, GHSEdge] = 
+	{			
+		val mutualInfo = weightedMutInfo(samples)
+        val vertices: RDD[(VertexId, GHSNode)] = samples.map { case(k,v) =>
+			(k.toLong, GHSNode(Fragment(k.toLong, k.toLong, 0D), AddedLink()))}
+		val edges = mutualInfo.map{ case ((key1, key2), weight) => Edge(key1.toLong, key2.toLong, GHSEdge(- weight))}
+		val graph = Graph(vertices, edges)
+		return graph
+	}
 }

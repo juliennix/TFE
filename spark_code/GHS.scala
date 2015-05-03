@@ -101,7 +101,7 @@ object GHS extends Serializable
 	
 	/////////////////////////////////////////////Second phase////////////////////////////////////////////
 	
-	// => compute the minimum edges in a fragment in order to link fragment with the minimum in the fragment
+	// => compute the minimum edges in a fragment in order to link fragment with the minimum edge in the fragment
 	def fragmentProg(vid: VertexId, attr: GHSNode, message: GHSMessage) = message.isUnset match 
 	{
 		case true => attr

@@ -101,21 +101,21 @@ object ManageFile extends Serializable
 	// file test that could be used to proceed performance test
 	def writeExample(nbSample : Int, sampleLength : Int, fileName : String, from : Int = 0, to : Int = 1) = {
 		println("Now writing... ")
-		var str = ""
 		val outputFile = new File(fileName)
 		val writer = new PrintWriter(new FileWriter(outputFile))
 		
 		for (line <- 0 to nbSample - 1)
 		{
-			str = line.toString + 	","
+			val buf = new StringBuilder
+			line.toString addString (buf, "", " ", ",")
 			for (element <- 0 to sampleLength - 1)
 			{				 
 				if (element == sampleLength - 1)
-					str = str + ((random * (to - from)) + from).round.toString
+					((random * (to - from)) + from).round.toString addString (buf)
 				else 
-					str = str + ((random * (to - from)) + from).round.toString + " "
+					((random * (to - from)) + from).round.toString  addString (buf, "", " ", " ")
 			}
-			writer.write(str)
+			writer.write(buf.toString)
 			if (line != nbSample - 1)
 				writer.write("\n")
 		}

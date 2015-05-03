@@ -17,7 +17,6 @@ import graphicalLearning.MutualInfo._
 
 object TestMethod extends Serializable
 {
-	
         def KLDivergence(inferedProb : RDD[(VertexId, Map[Double, Probability])], test : RDD[(Double, Array[Double])]) : Double = 
         {
 			val probTest = test.map{ case (key, array) => (key.toLong, probability(array))}

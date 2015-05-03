@@ -23,6 +23,7 @@ import graphicalLearning.EvidenceSet
 import graphicalLearning.MixtureTree._
 import graphicalLearning.Resample._
 import graphicalLearning.Plot._
+import graphicalLearning.TestMethod._
 
 object Main {
     def main(args:Array[String]) = 
@@ -37,7 +38,7 @@ object Main {
 		val conf = new SparkConf()
              .setMaster("local[4]")
              .setAppName("bayesian_network")
-             .set("spark.executor.memory", "2g")
+             .set("spark.executor.memory", "1g")
         val sc = new SparkContext(conf)
         
         // INPUT VARIABLES //
@@ -45,7 +46,7 @@ object Main {
         print("Please enter your name's textfile : " )
         //~ val filename = Console.readLine
         //~ val filename = "simple_labeled"
-        val filename = "10nodes"
+        val filename = "test_file/2_values/50nodes"
         
         print("Please enter your label delimiter in this file : " )
         //~ val labeldelimiter = Console.readLine
@@ -54,9 +55,7 @@ object Main {
         print("Please enter your delimiter in this file : " )
         //~ val delimiter = Console.readLine
         val delimiter = " "
-        
-        val t1 = System.currentTimeMillis
-        
+
         // READ INPUT FILES //
         
         // Retrieve the content in an adequate file in a RDD[LabeledPoint]
@@ -137,14 +136,17 @@ object Main {
         
         // INFERENCE
         
-        val evidence = EvidenceSet()
+        val evidence = EvidenceSet()	
         val inferedMarkovTree = inference(markovTreeSetUp, evidence)
         
         // MIXTURE TREE BY BOOTSTRAPING 
-        
-        val numberOfTree = 5
+        val t1 = System.currentTimeMillis
+        val numberOfTree = 25
         val mixtureTree = createMixtureWithBootstrap(sc, content, numberOfTree)
-        val inferedMixture = getInferedProbability(mixtureTree, evidence, numberOfTree)
+        val t2 = System.currentTimeMillis
+        val inferedProb = getInferedProbability(mixtureTree, evidence, numberOfTree)
+        val t3 = System.currentTimeMillis
+		println((t2 - t1)/1000D, (t3 - t2)/1000D)
      
 		val (train, test) = getTrainAndTestSet(content)
 		
@@ -154,15 +156,20 @@ object Main {
         // INFERENCE ON THE MIXTURE (INFERENCE PER TREE AND THEN AVERAGING)
         
         // TEST 
-        val fileNames = Array[String]("5nodes", "10nodes", "20nodes", "50nodes", "100nodes", "200nodes", "350nodes", "500nodes")
+                
+        val fileNames = Array[String]("test_file/2_values/5nodes", "test_file/2_values/10nodes", "test_file/2_values/20nodes",
+        "test_file/2_values/30nodes", "test_file/2_values/40nodes", "test_file/2_values/50nodes", "test_file/2_values/60nodes", "test_file/2_values/70nodes", "test_file/2_values/80nodes", "test_file/2_values/90nodes",
+        "test_file/2_values/100nodes")
+        //~ "test_file/2_values/125nodes", "test_file/2_values/150nodes", "test_file/2_values/200nodes", "test_file/2_values/350nodes", "test_file/2_values/500nodes")
         val repeat = 1
-        val method = Array[Int](1,3,5,6,7,8,10)
+        //~ val fileNames = Array[String]("test_file/2_values/500nodes")
+        //~ val method = Array[Int](1,3,5,6,7,8,10)
+        val method = Array[Int](1, 3, 4, 10)
         computationTimeChart(fileNames, repeat, method, sc)
         
-        // TIME COMPUTATION //
-        val t2 = System.currentTimeMillis
-		// Compute the time (in ms) of the main file
-        println((t2 - t1) + " msecs")
+        KLDivergenceChart(content, 1, 6,2,sc)
+        
+        
     }
 }
 

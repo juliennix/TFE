@@ -26,6 +26,7 @@ import java.awt.Dimension
 import java.awt.Paint
 import java.awt.Stroke
 import org.apache.commons.collections15._
+import org.apache.commons.collections15.functors.ConstantTransformer
 import edu.uci.ics.jung.visualization.decorators._
 import edu.uci.ics.jung.visualization.renderers.Renderer.VertexLabel._
 import edu.uci.ics.jung.visualization.control._
@@ -240,8 +241,9 @@ object Network
 		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller())
 		vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller())
 		vv.getRenderer().getVertexLabelRenderer().setPosition(Position.CNTR)
-	 
-	 
+		vv.getRenderContext().setEdgeShapeTransformer(new EdgeShape.Line())
+
+		
         var frame = new JFrame("Editing and interactive Graph Viewer 1")
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
         frame.getContentPane().add(vv)

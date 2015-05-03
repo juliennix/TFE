@@ -50,6 +50,26 @@ object Resample extends Serializable
 		(train, test)
 	}
 	
+	def concatArrayMap(map1 : Map[Int, Array[Double]], map2 : Map[Int, Array[Double]]) : Map[Int, Array[Double]] =
+	{
+			map1 ++ map2.map{ case (k,arr) => (k, arr ++ map1.getOrElse(k, Array())) }
+	}
+
+	def fractionalSet(train : RDD[(Double, Array[Double])], fraction : Int) : Array[RDD[(Double, Array[Double])]] =
+	{
+		val fractionalTrainArray = new Array[RDD[(Double, Array[Double])]](fraction)
+        val arrSize = train.first._2.length
+        val arrayId = shuffle((0 to arrSize - 1)).map(e => e % fraction)
+        val zippedArray = train.map{ case (key, arr) => (key, arrayId.zip(arr).groupBy(x => x._1).
+			map{ case (k, arr) => (k, arr.map{ case(k2, v) => v}.toArray)})}
+		for (i <- 0 to fraction - 1)
+		{
+			fractionalTrainArray(i) = zippedArray.map{case (k, m) => (k, m(i))}
+		}
+		return fractionalTrainArray
+
+	}
+	
 	/**
 	* This class implements a XORShift random number generator algorithm
 	* Source:

@@ -61,25 +61,66 @@ object MutualInfo extends Serializable
         val result = truncateAt(entropy(variable), precision) - truncateAt(conditionalEntropy(variable, condition), precision)
         return result
     } 
+
+    def weightedMutInfo(samples : RDD[(Double, Array[(Double, Probability)])]) : RDD[((Double,Double), Double)] =
+    {
+		val precision = 8 // number of decimal digits
+		val keyValue = samples.cartesian(samples).filter{ case ((key1, (val1)), (key2, (val2))) => key1 < key2}
+		return keyValue.map{ case ((key1, val1), (key2, val2)) => {
+			((key1,key2) , truncateAt(weightedEntropy(val1), precision) - truncateAt(weightedConditionalEntropy(val1, val2), precision))
+			}
+		}
+	}
      
 	def truncateAt(n: Double, p: Int): Double = { val s = math pow (10, p); (math floor n * s) / s }     
+
+	def weightedEntropy(l : Array[(Double, Probability)]): Double = 
+    {
+        val freq = l.groupBy(x=>x._1)
+        val weight = freq.map{case (key, arr) => arr.reduce((a,b) => (a._1,Probability( a._2.value + b._2.value)))}
+		val totWeight = weight.reduce((a,b) => (a._1,Probability(a._2.value + b._2.value)))._2.value
+		val averageWeight = weight.map{ case(key, prob) => key -> prob.value/totWeight}
+        
+        return averageWeight.values.map{ x =>
+            -x * (math.log(x) / math.log(2))}.reduce(_+_)
+    } 
     
-    // I(X;Y|Z) = H(X|Z) - H(X|Y,Z)
-    //          = H(X|Z) - H(X,Y,Z) + H(Y,Z)
-    //~ def condMutInfoRDD(samples : RDD[(Double, Array[Double])]) : RDD[((Double,Double), Double)] =
-    //~ {
-		//~ val precision = 8 // number of decimal digits
-		//~ val keyValue = samples.cartesian(samples).filter{ case ((key1, val1), (key2, val2)) => key1 < key2}
-		//~ return keyValue.map{ case ((key1, val1), (key2, val2)) => {
-			//~ ((key1,key2) , truncateAt(conditionalEntropy(val1, val2) - jointEntropy(val1, val2 + jointEntropy(val), precision))
-			//~ }
-		//~ }
-	//~ }
-    //~ 
-    //~ def jointEntropy( variableArray : Array[Array[Double]])
-    //~ {
-		//~ 
-	//~ }
+   	def weightedmapFunction(length : Int, variable : Array[(Double, Probability)], condition : Array[(Double, Probability)], i :Int = 0, conjMap : Map[(Double,Double), Double] = Map()) : Map[(Double,Double), Double] = 
+	{
+		if (i == length) return conjMap
+		else
+		{
+			if (conjMap.contains((variable(i)._1, condition(i)._1))){
+				val newConjMap = conjMap.updated((variable(i)._1, condition(i)._1), conjMap((variable(i)._1, condition(i)._1)) + variable(i)._2.value)
+				weightedmapFunction(length, variable, condition, i+1, newConjMap)
+			}
+			else{
+				val newConjMap = conjMap + ((variable(i)._1, condition(i)._1) -> variable(i)._2.value)
+				weightedmapFunction(length, variable, condition, i+1, newConjMap)
+			}
+		}	
+	}
+    def weightedConditionalEntropy(variable : Array[(Double, Probability)], condition : Array[(Double, Probability)]): Double =
+    {
+		val length = variable.length
+		val pYFreq = condition.groupBy(x=>x._1)
+		val pYWeight = pYFreq.map{case (key, arr) => arr.reduce((a,b) => (a._1,Probability( a._2.value + b._2.value)))}
+		val totWeight = pYWeight.reduce((a,b) => (a._1,Probability(a._2.value + b._2.value)))._2.value
+		val pY = pYWeight.map{ case(key, prob) => key -> prob.value/totWeight}
+		
+		val conjMap = weightedmapFunction(length, variable, condition)
+		return conjMap.map
+		{ 
+			case (key, count) =>
+			if (count == 0) 0D
+			else
+			{
+				val norm = (count.toDouble / totWeight)
+				- norm * (math.log((norm / pY(key._2)))/math.log(2))
+			}
+		}.reduce(_ + _)
+	} 
+    
     
 	def entropy(l : Array[Double]): Double = 
     {
