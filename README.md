@@ -38,7 +38,8 @@ Visualization tools for graphics
 ### Content File
 The content file contains the variables samples, each line corresponds the label of the variable separated by a coma and then a set of observations of one variable separated by a blank space.
 
-e.g. = 
+e.g. :
+
 1, 0 1 0 0 0 1 0 0 0 1 1 1 0
 
 2, 0 1 0 0 1 1 1 1 0 0 0 1 0
@@ -57,29 +58,45 @@ Different methods to construct the MWST are given
 With the graph created from the function RDDFastGraph()
 
 * Functions that run only on local drive
+
 1. kruskalEdgesAndVertices
 2. PrimsAlgo
 3. boruvkaAlgo
 
 * Functions that run partially on RDD and on local drive (see the specification)
+
 1. kruskalEdges
 2. kruskalEdgeRDD
 3. PrimsDistFuncEdge
 4. PrimsEdge
 
 * Functions that run only on RDD
+
 (be warned that using those functions on your own laptop may be very computationally expensive)
+
 1. PrimsRDD
 2. boruvkaDistAlgo
 
 With the graph created from the function GHSGraph()
-(This function use a lot a RAM but is less heavy than the others on RDD, use this function
+
+(This function use a lot a RAM but is less heavy than the others on RDD, use this function)
+
 3. GHSMwst
 
 ### Markov Tree Generation
 Representation of the tree :
 The markov tree in composed of nodes and edges
 The nodes are defined this way :
+MarkoNode.
+
+* level : the root has the level 0 then the next level of variables have 1 and so on.
+* cpt : the conditional probability table in a form of a Map[JointEvent, Probability]
+
+cpt.
+
+* JointEvent : It represents the joint values that can be taken by the variable and than the parent of this variable.
+* Probability : the corresponding probability of the JointEvent
+
 The edges are defined this way :
 
 
@@ -100,14 +117,14 @@ Tree structure for the second pahse :
 MCL-B algorithm (to reduce the variance)
 
 In order to create mixture, the former methods can be used. The mixture is created by boostrapping (resample without replacement) the content of the provided files. Then for each bootstrap sample, a tree is created. You may specified the size of the mixture. (to change the methods, replace in the mixture.scala file the methods used by the one you want to test, be warned that certain methods can be very computationally expensive)
+
+Use the function createMixtureWithBootstrap(sparkContext, content, numberOfTree)
  
 EM-MT algorithm (to reduce the bias)
  
-
+To create a mixture that reduces the bias, the Expaction Maximization algorithm is used. 
  
- 
- 
- 
+Use the function EM(sc, content, sierOfMixture)
  
  
  
