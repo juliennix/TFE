@@ -2,7 +2,8 @@ TFE (in construction)
 Learning Graphical Probabilistic Models
 =======================================
 ### What for
-This library is 
+This library is a machine learning library that use probabilistic graphical models to represent distribution.
+This library creates mixtures of Markov trees and inference can be performed on the models. There is two algortihms that create mixtures: the MCL-B (Mixtures Chow-Liu with Bootstrap) that reduces the variance and the EM-MT (Expectation Maximization - Mixture Tree) that reduces the bias.
 
 ### How to Run
 Use sbt to package the code, type in the shell :
@@ -36,10 +37,14 @@ Visualization tools for graphics
 ===========
 ### Content File
 The content file contains the variables samples, each line corresponds the label of the variable separated by a coma and then a set of observations of one variable separated by a blank space.
+
 e.g. = 
 1, 0 1 0 0 0 1 0 0 0 1 1 1 0
+
 2, 0 1 0 0 1 1 1 1 0 0 0 1 0
+
 ...
+
 Different part of the Chow-Liu algorithm to construct trees
 ### Mutual information
 In order to find probability dependencies between variables, the mutual information is commonly used.
@@ -51,25 +56,25 @@ Use the GHSGraph() function to create a graph that should be use to compute the 
 Different methods to construct the MWST are given
 With the graph created from the function RDDFastGraph()
 
-1. Functions that run only on local drive
-kruskalEdgesAndVertices
-PrimsAlgo
-boruvkaAlgo
-2. Functions that run partially on RDD and on local drive (see the specification)
-kruskalEdges
-kruskalEdgeRDD
+* Functions that run only on local drive
+1. kruskalEdgesAndVertices
+2. PrimsAlgo
+3. boruvkaAlgo
 
-PrimsDistFuncEdge
-PrimsEdge
+* Functions that run partially on RDD and on local drive (see the specification)
+1. kruskalEdges
+2. kruskalEdgeRDD
+3. PrimsDistFuncEdge
+4. PrimsEdge
 
-3. Functions that run only on RDD
+* Functions that run only on RDD
 (be warned that using those functions on your own laptop may be very computationally expensive)
-PrimsRDD
-boruvkaDistAlgo
+1. PrimsRDD
+2. boruvkaDistAlgo
 
 With the graph created from the function GHSGraph()
 (This function use a lot a RAM but is less heavy than the others on RDD, use this function
-GHSMwst
+3. GHSMwst
 
 ### Markov Tree Generation
 Representation of the tree :
