@@ -47,6 +47,7 @@ e.g. :
 ...
 
 Different part of the Chow-Liu algorithm to construct trees
+-----------------------------------------------------------
 ### Mutual information
 In order to find probability dependencies between variables, the mutual information is commonly used.
 Build on the shannon's entropy and the conditional one, a matrix of mutual information is used to construct the maximum spanning tree.
@@ -59,29 +60,44 @@ With the graph created from the function RDDFastGraph()
 
 * Functions that run only on local drive
 
-1. kruskalEdgesAndVertices
-2. PrimsAlgo
-3. boruvkaAlgo
+ 1. kruskalEdgesAndVertices
+ 2. PrimsAlgo
+ 3. boruvkaAlgo
 
 * Functions that run partially on RDD and on local drive (see the specification)
 
-1. kruskalEdges
-2. kruskalEdgeRDD
-3. PrimsDistFuncEdge
-4. PrimsEdge
+ 1. kruskalEdges
+ 2. kruskalEdgeRDD
+ 3. PrimsDistFuncEdge
+ 4. PrimsEdge
 
 * Functions that run only on RDD
 
 (be warned that using those functions on your own laptop may be very computationally expensive)
 
-1. PrimsRDD
-2. boruvkaDistAlgo
+ 1. PrimsRDD
+ 2. boruvkaDistAlgo
 
+* Message passing algorithm
 With the graph created from the function GHSGraph()
 
 (This function use a lot a RAM but is less heavy than the others on RDD, use this function)
 
-3. GHSMwst
+ 1. GHSMwst
+
+As the structure of the GHSGraph is a little bit more complex, here is its representation: 
+The nodes are defined this way:
+GHSNode.
+
+* Fragment 
+
+Fragment.
+
+* id ; VertexId : it corresponds to the 
+* lastFragmentId ; VertexId : it corresponds to the 
+* minWeight ; Double : it corresponds to the minimum weight that will be used to choose the minimum weight in a fragment
+
+* AddedLink
 
 ### Markov Tree Generation
 Representation of the tree :
@@ -89,30 +105,77 @@ The markov tree in composed of nodes and edges
 The nodes are defined this way :
 MarkoNode.
 
-* level : the root has the level 0 then the next level of variables have 1 and so on.
-* cpt : the conditional probability table in a form of a Map[JointEvent, Probability]
+* level ; Double : the root has the level 0 then the next level of variables have 1 and so on.
+* cpt ; Map[JointEvent, Probability] : the conditional probability table
 
 cpt.
 
 * JointEvent : It represents the joint values that can be taken by the variable and than the parent of this variable.
-* Probability : the corresponding probability of the JointEvent
 
-The edges are defined this way :
+JoinEvent.
 
+* Variable ; Double : the value of an occurrence of the variable
+* Condition ; Double : the value of an occurrence of the condition
 
-Function to create trees : 
-markovTreeCreation(MWST)
+Probability : the corresponding probability of the JointEvent
+
+Probability.
+
+* value ; Double : the probability of the joint event
+
+The edges are simply define as Double. This Double represents the weight of the edge i.e. the mutual information between the two variable it links.
+
+Use the function markovTreeCreation(MWST) to create Markov trees.
+
 ### Learning Parameters
-In order to learn parameters from a markov tree use the function learnParameters(markovTree, content)
+In order to learn parameters from a markov tree use the function learnParameters(markovTree, content).
 The estimation of the parameters are base on the maximum likelijood estimation
+
 ### Inference
 The inference is done by the belief propagation algorithm
 
 In order to perform inference, the structure of the given tree will be changed in order to keep into that tree the belief, the lambda and pi messages, the conditional probability table... The representation of the tree is divided in two parts : the firt phase where lambda messages are send from the leaves to the root by level and the second phase where pi messages are send from the root to the leaves and computing the belief.
 
 Tree structure for the first phase : 
+The nodes are define this way:
+FirstPhaseNode.
+* level ; Double : the root has the level 0 then the next level of variables have 1 and so on.
+* algoLevel ; Double : the algorithm level as the nodes have to send messages level by level
+* state ; String : the state of a variable can be "root", "node" or "leaf"
+* cpt ; Map[JointEvent, Probability] : the conditional probability table
 
-Tree structure for the second pahse :
+cpt.
+
+* JointEvent : It represents the joint values that can be taken by the variable and than the parent of this variable.
+
+JoinEvent.
+
+* Variable ; Double : the value of an occurrence of the variable
+* Condition ; Double : the value of an occurrence of the condition
+
+Probability : the corresponding probability of the JointEvent
+
+Probability.
+
+* value ; Double : the probability of the joint event
+
+* lambda ; Map[Double, Probability] : the lambda message
+* pi ; Map[Double, Probability] : the pi message
+* activeNode ; Boolean : if the node has already sends a message or node
+
+Tree structure for the second phase:
+The nodes are defines this way:
+SecondPhaseNode.
+
+* state : the same as described before
+* cpt : the same conditional probability table described before
+* lambda ; Map[Double, Probability] : the lambda message
+* pi ; Map[Double, Probability] : the pi message
+* childrenLambda ; Map[VertexId, Map[Double, Probability]] : the lambda needed to compute the pi messages
+* belief ; Map[Double, Probability] : the belief of the variable subject to the evidence.
+
+The edges are simply Double. (no need of the edge attributes here)
+
 ### Mixture
 MCL-B algorithm (to reduce the variance)
 
