@@ -1,4 +1,6 @@
-name := "spark_code"
+name := "spark-code"
+
+organization := "org.apache.spark"
 
 version := "1.0"
 
@@ -23,7 +25,5 @@ libraryDependencies += "org.apache.hadoop" % "hadoop-client" % "2.2.0"
 libraryDependencies += "org.apache.spark" % "spark-graphx_2.10" % "1.2.1"
 
 libraryDependencies += "org.apache.spark" % "spark-mllib_2.10" % "1.2.1"
-
-libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.1.1"
 
 libraryDependencies += "org.jfree" % "jfreechart" % "1.0.14"
