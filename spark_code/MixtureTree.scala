@@ -42,6 +42,24 @@ object MixtureTree extends Serializable
 		return mixtureTree
 	}
 	
+	def createMixtureWithBootstrapBayes[VD: ClassTag](sc : SparkContext, input : RDD[(Double, Array[Double])], numberOfTree : Int) : Array[Graph[MarkovNode, Double]] =
+	{
+		val emptyMixture = new Array[Graph[MarkovNode, Double]](numberOfTree)
+		val mixtureTree = emptyMixture.map( e=> 
+		{
+			// 'll see what kind of seed to put here
+			val bootstrapInput = bootstrapRDD(input, 1)
+			val messageGraph = GHSGraph(bootstrapInput, sc)
+			val GHSMwstGraph = GHSMwst(messageGraph)
+			val markovTree = markovTreeCreation(GHSMwstGraph)
+			//~ val graph = RDDFastGraph(bootstrapInput,sc)
+			//~ val kruskalGraph = kruskalEdgesAndVertices(graph)
+			//~ val markovTree = markovTreeCreation(kruskalGraph)
+			learnBayesParameters(markovTree, input)
+		})
+		return mixtureTree
+	}
+	
 	def recEM(sc: SparkContext, train : RDD[(Double, Array[Double])], mixtureTree : Array[Graph[SecondPhaseNode, Double]], mixtureSize : Int, muK : Array[RDD[Probability]], theta : Double) : (Array[Graph[SecondPhaseNode, Double]], Array[RDD[Probability]]) = 
 	{
 		val numberOfVar = train.count
@@ -114,8 +132,9 @@ object MixtureTree extends Serializable
 		map1 ++ map2.map{ case (k,prob) => k -> (Probability(prob.value * map1.getOrElse(k,Probability(0.0)).value)) }
 	}
 	
-	def getInferedProbability(mixtureTree : Array[Graph[MarkovNode, Double]], evidence : EvidenceSet, numberOfTree : Int) : RDD[(VertexId, Map[Double, Probability])] =
+	def getInferedProbability(mixtureTree : Array[Graph[MarkovNode, Double]], evidence : EvidenceSet) : RDD[(VertexId, Map[Double, Probability])] =
 	{
+		val numberOfTree = mixtureTree.length
 		val inferedMixture = mixtureTree.map(tree => inference(tree, evidence))
         val weightByTree = Array.fill(numberOfTree)(1D/numberOfTree)
         val beliefByTree = inferedMixture.map( tree => tree.vertices.map(e => (e._1, e._2.belief.map{ case (key, prob) => (key -> Probability(prob.value/numberOfTree))})))

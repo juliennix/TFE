@@ -7,6 +7,7 @@
 package graphicalLearning
 
 import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
@@ -25,7 +26,7 @@ object ManageFile extends Serializable
 	// label and the sample and a delimiter for the sample itself
 	// Return an RDD[(Double, Array[Double])] where the FLoat corresponds
 	// to the label and the array to samples contained in the file
-    def FileToPairRDD(absPath:String, labelDelimiter:String, delimiter:String, sc : SparkContext): RDD[(Double, Array[Double])] =
+    def FileToPairRDDVar(absPath:String, labelDelimiter:String, delimiter:String, sc : SparkContext): RDD[(Double, Array[Double])] =
     {  
 		
         println("Now reading... " + absPath)
@@ -38,7 +39,40 @@ object ManageFile extends Serializable
         }
         return dataRDD
     }
+    
+    def FileToRDDObs(absPath:String, delimiter:String, sc : SparkContext): RDD[Array[Double]] =
+    {  
+		
+        println("Now reading... " + absPath)
+        val data = sc.textFile(absPath)
+        val dataRDD = data.map 
+        { 
+            line =>
+            line.split("""\""" + delimiter).map(_.toDouble)
+        }
+        return dataRDD
+    }
+    
+    def FileToRDDValidation(absPath:String, sc : SparkContext): RDD[(Double, Double)] =
+    {  
+        println("Now reading... " + absPath)
+        val data = sc.textFile(absPath).map(_.toDouble)    
+        return data.zipWithIndex.map{case (k,v) => (v,k)}
+    }
 
+	def getVariableSampleFromObs(observations : RDD[Array[Double]]): RDD[(Double, Array[Double])] =
+	{
+		return observations.map(arr => (1, arr.zipWithIndex.map(e => Map(e._2 -> Array(e._1))))).reduceByKey((a,b) => a.zip(b).map{case(map1, map2) => map1.map{case (key, value) => (key, value ++ map2(key))}}).flatMap{case (key, arr) => 
+			{	
+				arr.map(varAndArray =>
+				{
+					val variable = varAndArray.toArray
+					(variable.head._1.toDouble, variable.head._2)
+				})
+				
+			}}
+	}
+	
 	// Functions which takes an adequate file and its delimiter between 
 	// label and the sample and a delimiter for the sample itself
 	// Return an RDD[LabeledPoint] where the label corresponds

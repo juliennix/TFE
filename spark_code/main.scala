@@ -47,21 +47,33 @@ object Main {
         //~ val filename = Console.readLine
         //~ val filename = "simple_labeled"
         val filename = "test_file/2_values/50nodes"
+        val filenameTrain = "test_file/200_5/data_120/DAG__num_var200_m_par5_0_samples120_data0.dat"
+        //~ val filenameTest = "test_file/200_5/DAG__num_var200_m_par5_0_samples50000_validation.dat"
+        val filenameTest = "test_file/200_5/short_observation.dat"
+        val filenameValidation = "test_file/200_5/DAG__num_var200_m_par5_0_samples50000_validation_proba.dat"
         
         print("Please enter your label delimiter in this file : " )
         //~ val labeldelimiter = Console.readLine
         val labeldelimiter = ","
-        
+        val varDelimiter = " "   
+            
         print("Please enter your delimiter in this file : " )
         //~ val delimiter = Console.readLine
-        val delimiter = " "
+        val obsDelimiter = "; "
 
         // READ INPUT FILES //
         
+        // Retrieve the content in an adequate file in a RDD[Double, Array[Double]]
+        //~ val variablesSample = FileToPairRDDVar(filename, labeldelimiter, delimiter, sc)
+        // Retrieve the content in an adequate file in a RDD[Double, Array[Double]]
+        val train = FileToRDDObs(filenameTrain, obsDelimiter, sc)
+        val test = FileToRDDObs(filenameTest, obsDelimiter, sc)
+        val variablesSample = getVariableSampleFromObs(train)
+        val evidenceSetRDD = getEvidenceFromTest(test)
+		val validation = FileToRDDValidation(filenameValidation, sc)
+        
         // Retrieve the content in an adequate file in a RDD[LabeledPoint]
-        val content = FileToPairRDD(filename, labeldelimiter, delimiter, sc)
-        // Retrieve the content in an adequate file in a RDD[LabeledPoint]
-		val labeledContent = FileGraphReader(filename, labeldelimiter, delimiter, sc)
+		val labeledContent = FileGraphReader(filename, labeldelimiter, varDelimiter, sc)
 		
 		// Some old way to compute the mwst from a mutual information' array
         val M = skelTree(labeledContent)
@@ -81,12 +93,12 @@ object Main {
         
         val graph3 = LabeledFastGraph(labeledContent, sc).cache
         
-        val graph4 = RDDFastGraph(content,sc)
+        val graph4 = RDDFastGraph(variablesSample,sc)
         
         // graph functions to define fully dense graphs
         val fullGraph1 = LabeledfastFullGraph(labeledContent, sc).cache
         
-        val fullGraph2 = RDDfastFullGraph(content, sc).cache
+        val fullGraph2 = RDDfastFullGraph(variablesSample, sc).cache
 
 		// MWST ALGORITHMS (first) //
 		// Those algorithm compute the mwst partially on the local driver
@@ -94,7 +106,6 @@ object Main {
 		
 		// Kruskal
         val kruskalGraph = kruskalEdgesAndVertices(graph4)
-        val kruskalGraph2 = kruskalEdges(graph4)
                 
         // Prim
         val primGraph = PrimsAlgo(graph4)
@@ -106,6 +117,7 @@ object Main {
         // MWST ALGORITHMS (second) //
         
         // Kruskal
+        val kruskalGraph2 = kruskalEdges(graph4)
         val kruskalGraph3 = kruskalEdgeRDD(graph4)
         
         // Prim
@@ -117,7 +129,7 @@ object Main {
         val boruvkaGraph2 = boruvkaDistAlgo(graph4)
                 
         // GHS
-        val messageGraph = GHSGraph(content, sc)
+        val messageGraph = GHSGraph(variablesSample, sc)
         val GHSMwstGraph = GHSMwst(messageGraph)
         
         // DISPLAY GRAPHS //
@@ -127,7 +139,7 @@ object Main {
         // MARKOVTREE CREATION // 
 
         val markovTree = markovTreeCreation(GHSMwstGraph)
-        val markovTreeSetUp = learnParameters(markovTree, content)
+        val markovTreeSetUp = learnParameters(markovTree, variablesSample)
         
         // DISPLAY TREE //
         
@@ -137,37 +149,46 @@ object Main {
         // INFERENCE
         
         val evidence = EvidenceSet()	
+        //~ val evidence = evidenceSetRDD.first	
         val inferedMarkovTree = inference(markovTreeSetUp, evidence)
         
         // MIXTURE TREE BY BOOTSTRAPING 
         val t1 = System.currentTimeMillis
-        val numberOfTree = 25
-        val mixtureTree = createMixtureWithBootstrap(sc, content, numberOfTree)
+        val numberOfTree = 2
+        val mixtureTree = createMixtureWithBootstrap(sc, variablesSample, numberOfTree)
+        val mixtureTree2 = createMixtureWithBootstrapBayes(sc, variablesSample, numberOfTree)
         val t2 = System.currentTimeMillis
-        val inferedProb = getInferedProbability(mixtureTree, evidence, numberOfTree)
+        val inferedProb = getInferedProbability(mixtureTree, evidence)
         val t3 = System.currentTimeMillis
 		println((t2 - t1)/1000D, (t3 - t2)/1000D)
      
-		val (train, test) = getTrainAndTestSet(content)
+		//~ val (train, test) = getTrainAndTestSet(variablesSample)
 		
-		val trainGraph = GHSGraph(train, sc)
+		val trainGraph = GHSGraph(variablesSample, sc)
         val GHSMwstGraph2 = GHSMwst(trainGraph)
 
         // INFERENCE ON THE MIXTURE (INFERENCE PER TREE AND THEN AVERAGING)
-        
+        val evidencePerObs = evidenceSetRDD.zipWithIndex
+        for (i <- 0 to (evidenceSetRDD.count.toInt-1)) yield (getInferedProbability(mixtureTree, evidencePerObs.filter(e => e._2 == i.toLong).first._1))
+		
+		val fraction = 5
+		EM(sc, variablesSample, fraction)
+
         // TEST 
                 
         val fileNames = Array[String]("test_file/2_values/5nodes", "test_file/2_values/10nodes", "test_file/2_values/20nodes",
         "test_file/2_values/30nodes", "test_file/2_values/40nodes", "test_file/2_values/50nodes", "test_file/2_values/60nodes", "test_file/2_values/70nodes", "test_file/2_values/80nodes", "test_file/2_values/90nodes",
-        "test_file/2_values/100nodes")
+        "test_file/2_values/100nodes", "test_file/2_values/125nodes", "test_file/2_values/150nodes", "test_file/2_values/200nodes")
         //~ "test_file/2_values/125nodes", "test_file/2_values/150nodes", "test_file/2_values/200nodes", "test_file/2_values/350nodes", "test_file/2_values/500nodes")
-        val repeat = 1
+        val repeat = 3
         //~ val fileNames = Array[String]("test_file/2_values/500nodes")
         //~ val method = Array[Int](1,3,5,6,7,8,10)
         val method = Array[Int](1, 3, 4, 10)
         computationTimeChart(fileNames, repeat, method, sc)
         
-        KLDivergenceChart(content, 1, 6,2,sc)
+        val numberOfSample = train.count.toInt
+        KLDivergence(mixtureTree, test, validation, numberOfSample, sc)
+        KLDivergenceChart(variablesSample, test, validation, 1, 6, 2, sc)
         
         
     }

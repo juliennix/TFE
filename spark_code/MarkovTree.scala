@@ -88,6 +88,38 @@ object MarkovTree extends Serializable
 		}
 	}  	
 	
+	def bayesMapFunction(length : Int, variable : Array[Double], condition : Array[Double], i :Int = 0, conjMap : Map[(Double,Double), Int] = Map()) : Map[(Double,Double), Int] = 
+	{
+		if (i == length) return conjMap
+		else
+		{
+			if (conjMap.contains((variable(i), condition(i)))){
+				val newConjMap = conjMap.updated((variable(i), condition(i)), conjMap((variable(i), condition(i))) + 1)
+				bayesMapFunction(length, variable, condition, i+1, newConjMap)
+			}
+			else{
+				val newConjMap = conjMap + ((variable(i), condition(i)) -> 2)
+				bayesMapFunction(length, variable, condition, i+1, newConjMap)
+			}
+		}	
+	}
+	
+    def bayesConditionalProb(variable : Array[Double], condition : Array[Double]): Map[JointEvent, Probability] =
+    {
+		val length = variable.length
+		val card = variable.max
+		val pY = condition.groupBy(x=>x).mapValues(v => (v.size.toDouble+1)/(length+v.max))
+		val conjMap = bayesMapFunction(length, variable, condition)
+		return conjMap.map
+		{
+			case ((variable, condition), value) =>
+			{
+				val norm = (value.toDouble / (length + card))
+				(JointEvent(variable, condition), Probability((norm / pY(condition))))
+			}
+		}
+	}  	
+	
 	def weightedMapFunction(length : Int, variable : Array[(Double, Probability)], condition : Array[(Double, Probability)], i :Int = 0, conjMap : Map[(Double,Double), Double] = Map()) : Map[(Double,Double), Double] = 
 	{
 		if (i == length) return conjMap
@@ -129,6 +161,12 @@ object MarkovTree extends Serializable
         val freq = l.groupBy(x=>JointEvent(x, x)).mapValues(v => Probability(v.size.toDouble/length))
         return freq.map{ x => x}
     }  
+	def bayesProb(l : Array[Double]): Map[JointEvent, Probability] = 
+    {
+        val length = l.length
+        val freq = l.groupBy(x=>JointEvent(x, x)).mapValues(v => Probability((v.size.toDouble+1)/(length+v.max)))
+        return freq.map{ x => x}
+    }  
 	def weightedMargProb(l : Array[(Double, Probability)]): Map[JointEvent, Probability] = 
     {
 		val freq = l.groupBy(x=>JointEvent(x._1, x._1))
@@ -150,6 +188,26 @@ object MarkovTree extends Serializable
 		// Retrieve the root without retrieving data on the local drive but use a subtractByKey which is a more complex operation
 		val labels = markovTree.vertices.filter{ case (vid, markovNode) => markovNode.level != 0.0}.map(x => (x._1.toDouble, 0D))
 		val root = samples.subtractByKey(labels).map{ case (label, sample) => (label.toLong, MarkovNode(0D, margProb(sample)))}
+		
+		// Retrieve the root by retrieving the rootlabel on the local drive
+		//~ val rootLabel = markovTree.vertices.filter{ case (vid, markovNode) => markovNode.level == 0.0}.keys.first
+		//~ val root = samples.filter{ case (label, sample) => label == rootLabel}.map{ case (label, sample) => (label.toLong, MarkovNode(0D, margProb(sample)))}
+		
+		val vertices = condProbChildren union root
+		return Graph(vertices, markovTree.edges)
+	}
+	
+	def learnBayesParameters(markovTree : Graph[MarkovNode, Double], samples :  RDD[(Double, Array[Double])]) : Graph[MarkovNode, Double] = 
+	{
+		val cart = samples.cartesian(samples).filter{ case ((key1, val1), (key2, val2)) => key1 != key2}
+		val keyValue = cart.map{ case ((key1, val1), (key2, val2)) => ((key1.toLong, key2.toLong), (val1, val2))}
+		val relation = markovTree.triplets.map(t => ((t.srcId, t.dstId), t.dstAttr.level))
+		val joined = relation.join(keyValue)
+		val condProbChildren = joined.map{ case ((key1, key2),(levelChild,(array1, array2))) => (key2, MarkovNode(levelChild, bayesConditionalProb(array1, array2)))}
+		
+		// Retrieve the root without retrieving data on the local drive but use a subtractByKey which is a more complex operation
+		val labels = markovTree.vertices.filter{ case (vid, markovNode) => markovNode.level != 0.0}.map(x => (x._1.toDouble, 0D))
+		val root = samples.subtractByKey(labels).map{ case (label, sample) => (label.toLong, MarkovNode(0D, bayesProb(sample)))}
 		
 		// Retrieve the root by retrieving the rootlabel on the local drive
 		//~ val rootLabel = markovTree.vertices.filter{ case (vid, markovNode) => markovNode.level == 0.0}.keys.first

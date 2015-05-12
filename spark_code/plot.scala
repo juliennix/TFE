@@ -51,7 +51,7 @@ object Plot
 		{
 			val delimiter = " "
 			val labeldelimiter = ","
-			val content = FileToPairRDD(filename, labeldelimiter, delimiter, sc)
+			val content = FileToPairRDDVar(filename, labeldelimiter, delimiter, sc)
 			val meanTime = new Array[Double](repeat)
 			numberOfNodes(fileIndex) = getLineNumber(filename).toDouble
 			
@@ -177,22 +177,96 @@ object Plot
 		frame.setVisible(true)
 	}
 	
-	def KLDivergenceChart(content : RDD[(Double, Array[Double])], begin : Int, end : Int, step : Int, sc : SparkContext) = 
+	def createDatasetMixture(fileNames : Array[String], repeat : Int, method : Int, sc : SparkContext) : XYSeries =
+	{    
+		val numberOfFiles = fileNames.length
+		val timeArray = new Array[Double](numberOfFiles)
+		val numberOfNodes = new Array[Double](numberOfFiles)
+		var methodName = ""
+		var fileIndex = 0
+		for(filename <- fileNames)
+		{
+			val delimiter = " "
+			val labeldelimiter = ","
+			val content = FileToPairRDDVar(filename, labeldelimiter, delimiter, sc)
+			val meanTime = new Array[Double](repeat)
+			numberOfNodes(fileIndex) = getLineNumber(filename).toDouble
+			
+			for(i <- 0 to repeat - 1)
+			{
+				
+				if (isEmpty(content)) println("Something went wrong, try again")
+				else 
+				{
+				    try
+				    {
+				        val t1 = System.currentTimeMillis
+				        val numberOfTree = 10
+						createMixtureWithBootstrap(sc, content, numberOfTree)
+				        val t2 = System.currentTimeMillis
+				        meanTime(i) = (t2-t1)/1000D
+				    } 
+				    catch
+				    {
+				        case e: java.lang.NumberFormatException => 
+				        {
+							println("Your file is not adequate")
+				        }
+				        case e: java.lang.UnsupportedOperationException => 
+				        {
+							println("Your file is not adequate")   
+				        }    
+				    }
+				}
+			}
+			timeArray(fileIndex) = meanTime.reduce(_+_)/meanTime.length
+			fileIndex += 1
+		}
+
+		val serie = new XYSeries("")
+		for(i <- 0 to numberOfFiles - 1)
+		{	
+			serie.add(numberOfNodes(i), timeArray(i))
+		}
+		return serie
+	}
+	
+	def computationTimeChartMixture(fileNames : Array[String], repeat : Int, methods : Array[Int], sc : SparkContext) = 
+	{
+		val chartTitle = ""
+		val xAxisLabel = "number of nodes"
+		val yAxisLabel = "computation time (in second)"
+	 
+		val dataset = new XYSeriesCollection()
+		for(methodId <- methods)
+		{
+			dataset.addSeries(createDatasetMixture(fileNames, repeat, methodId, sc))
+		}
+
+		val frame = new ChartFrame(
+		"Plot Windows",
+		ChartFactory.createXYLineChart(chartTitle,
+		        xAxisLabel, yAxisLabel, dataset, PlotOrientation.VERTICAL, false, false, false)
+	 	)
+	 	frame.pack()
+		frame.setVisible(true)
+	}
+	
+	def KLDivergenceChart(train : RDD[(Double, Array[Double])], test : RDD[Array[Double]], validation : RDD[(Double, Double)],  begin : Int, end : Int, step : Int, sc : SparkContext) = 
 	{
 		val chartTitle = ""
 		val xAxisLabel = "number of trees"
 		val yAxisLabel = "Kullback-Leibler divergence (in bits)"
-	 
-	 	val (train, test) = getTrainAndTestSet(content)
-	 	
+		 	
 		val serie = new XYSeries("")	
 		val dataset = new XYSeriesCollection()
 		for(numberOfTree  <- begin to end by step)
 		{
 			val evidence = EvidenceSet()
 			val mixtureTree = createMixtureWithBootstrap(sc, train, numberOfTree)
-			val inferedProb = getInferedProbability(mixtureTree, evidence, numberOfTree)
-			val score = KLDivergence(inferedProb, test)
+			//~ val inferedProb = getInferedProbability(mixtureTree, evidence)
+			val numberOfSample = train.count.toInt
+			val score = KLDivergence(mixtureTree, test, validation, numberOfSample, sc)
 			println(numberOfTree, score)
 			serie.add(numberOfTree, score)
 		}

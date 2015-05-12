@@ -21,13 +21,29 @@ object Resample extends Serializable
 	// Simple bootstrap, maybe a way to do that in more efficient way
 	def bootstrapRDD (input: RDD[(Double, Array[Double])], seed: Int): RDD[(Double, Array[Double])] = 
 	{
+		val arrSize = input.first._2.length
+		val rng = new scala.util.Random
+		// to make generation reproducible uncomment
+		//~ rng.setSeed(seed)
+		val shuffleArray = (new Array[Int](arrSize)).map(v => rng.nextDouble*(arrSize-1).round.toInt)
+		
+		input.map 
+		{ 
+			case (key, arr) =>
+			(key, shuffleArray.map(e => arr(e.toInt)))
+		}
+	}
+	
+	def resampleRDD (input: RDD[(Double, Array[Double])], seed: Int): RDD[(Double, Array[Double])] = 
+	{
 		input.map 
 		{ 
 			case (key, arr) =>
 			// Use random seed = seed + partitionIndex + 1 to make generation reproducible.
 			val rng = new XORShiftRandom
 			val length = arr.length
-			rng.setSeed(seed)
+			// to make generation reproducible uncomment
+			//~ rng.setSeed(seed)
 			(key, arr.map( element =>
 					arr((rng.nextDouble*(length-1)).round.toInt)))
 		}

@@ -11,14 +11,7 @@ import graphicalLearning.MarkovTree._
 import org.apache.spark.graphx._
 import org.apache.spark.SparkContext._
 
-//~ object FirstPhaseNode extends Serializable 
-//~ {
-	//~ def apply(): FirstPhaseNode = FirstPhaseNode(0D, 0D, "", Map[JointEvent, Probability](), Map[Event, Probability](),  Map[Event, Probability]())
-//~ }
-//~ case class FirstPhaseNode(level: Double, algoLevel : Double, state : String, cpt: Map[JointEvent, Probability] = Map(), lambda : Map[Event, Probability], pi : Map[Event, Probability], activeNode : Boolean = false) extends Serializable
-//~ 
-//~ case class FirstPhaseMessage(lambda : Map[Event, Probability], algoLevel : Double) extends Serializable
-//~ 
+
 //~ object SecondPhaseNode extends Serializable 
 //~ {
 	//~ def apply(): SecondPhaseNode = SecondPhaseNode("", Map[JointEvent, Probability](), Map[Event, Probability](), Map[Event, Probability](),  Map[Event, Probability]())
@@ -35,13 +28,7 @@ import org.apache.spark.SparkContext._
       //~ case _ => false 
     //~ }
 //~ }
-//~ 
-//~ case class EvidenceSet(evidences : Map[VertexId, Evidence] = Map()) extends Serializable
-//~ 
-//~ case class Evidence(event : Event = Event(-1D), prob : Probability = Probability(-1D)) extends Serializable
-//~ {
-	//~ var notFound: Boolean = event.value == -1D
-//~ }
+
 
 object FirstPhaseNode extends Serializable 
 {
