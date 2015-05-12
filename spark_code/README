@@ -1,9 +1,0 @@
-sbt
-> compile
-> run
-
-or 
-
-sbt
-> package
-$ /spark-1.2.1/bin/spark-submit --class "Main" --master local[4] /home/nix/Bureau/TFE-Project/spark_code/target/scala-2.10/spark_code_2.10-1.0.jar
