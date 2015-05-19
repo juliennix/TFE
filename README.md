@@ -2,12 +2,8 @@ TFE (in construction)
 Learning Graphical Probabilistic Models
 =======================================
 ### What for
-<<<<<<< HEAD
-This library is 
-=======
 This library is a machine learning library that use probabilistic graphical models to represent distribution.
 This library creates mixtures of Markov trees and inference can be performed on the models. There is two algortihms that create mixtures: the MCL-B (Mixtures Chow-Liu with Bootstrap) that reduces the variance and the EM-MT (Expectation Maximization - Mixture Tree) that reduces the bias.
->>>>>>> 70ecb6126a16fdb71eac08407bcfe31b95d7958e
 
 ### How to Run
 Use sbt to package the code, type in the shell :
@@ -41,13 +37,6 @@ Visualization tools for graphics
 ===========
 ### Content File
 The content file contains the variables samples, each line corresponds the label of the variable separated by a coma and then a set of observations of one variable separated by a blank space.
-<<<<<<< HEAD
-e.g. = 
-1, 0 1 0 0 0 1 0 0 0 1 1 1 0
-2, 0 1 0 0 1 1 1 1 0 0 0 1 0
-...
-Different part of the Chow-Liu algorithm to construct trees
-=======
 
 e.g. :
 
@@ -59,7 +48,6 @@ e.g. :
 
 Different part of the Chow-Liu algorithm to construct trees
 -----------------------------------------------------------
->>>>>>> 70ecb6126a16fdb71eac08407bcfe31b95d7958e
 ### Mutual information
 In order to find probability dependencies between variables, the mutual information is commonly used.
 Build on the shannon's entropy and the conditional one, a matrix of mutual information is used to construct the maximum spanning tree.
@@ -70,27 +58,6 @@ Use the GHSGraph() function to create a graph that should be use to compute the 
 Different methods to construct the MWST are given
 With the graph created from the function RDDFastGraph()
 
-<<<<<<< HEAD
-1. Functions that run only on local drive
-kruskalEdgesAndVertices
-PrimsAlgo
-boruvkaAlgo
-2. Functions that run partially on RDD and on local drive (see the specification)
-kruskalEdges
-kruskalEdgeRDD
-
-PrimsDistFuncEdge
-PrimsEdge
-
-3. Functions that run only on RDD
-(be warned that using those functions on your own laptop may be very computationally expensive)
-PrimsRDD
-boruvkaDistAlgo
-
-With the graph created from the function GHSGraph()
-(This function use a lot a RAM but is less heavy than the others on RDD, use this function
-GHSMwst
-=======
 * Functions that run only on local drive
 
  1. kruskalEdgesAndVertices
@@ -131,22 +98,11 @@ Fragment.
 * minWeight ; Double : it corresponds to the minimum weight that will be used to choose the minimum weight in a fragment
 
 * AddedLink
->>>>>>> 70ecb6126a16fdb71eac08407bcfe31b95d7958e
 
 ### Markov Tree Generation
 Representation of the tree :
 The markov tree in composed of nodes and edges
 The nodes are defined this way :
-<<<<<<< HEAD
-The edges are defined this way :
-
-
-Function to create trees : 
-markovTreeCreation(MWST)
-### Learning Parameters
-In order to learn parameters from a markov tree use the function learnParameters(markovTree, content)
-The estimation of the parameters are base on the maximum likelijood estimation
-=======
 MarkoNode.
 
 * level ; Double : the root has the level 0 then the next level of variables have 1 and so on.
@@ -175,17 +131,12 @@ Use the function markovTreeCreation(MWST) to create Markov trees.
 In order to learn parameters from a markov tree use the function learnParameters(markovTree, content).
 The estimation of the parameters are base on the maximum likelijood estimation
 
->>>>>>> 70ecb6126a16fdb71eac08407bcfe31b95d7958e
 ### Inference
 The inference is done by the belief propagation algorithm
 
 In order to perform inference, the structure of the given tree will be changed in order to keep into that tree the belief, the lambda and pi messages, the conditional probability table... The representation of the tree is divided in two parts : the firt phase where lambda messages are send from the leaves to the root by level and the second phase where pi messages are send from the root to the leaves and computing the belief.
 
 Tree structure for the first phase : 
-<<<<<<< HEAD
-
-Tree structure for the second pahse :
-=======
 The nodes are define this way:
 FirstPhaseNode.
 * level ; Double : the root has the level 0 then the next level of variables have 1 and so on.
@@ -225,25 +176,10 @@ SecondPhaseNode.
 
 The edges are simply Double. (no need of the edge attributes here)
 
->>>>>>> 70ecb6126a16fdb71eac08407bcfe31b95d7958e
 ### Mixture
 MCL-B algorithm (to reduce the variance)
 
 In order to create mixture, the former methods can be used. The mixture is created by boostrapping (resample without replacement) the content of the provided files. Then for each bootstrap sample, a tree is created. You may specified the size of the mixture. (to change the methods, replace in the mixture.scala file the methods used by the one you want to test, be warned that certain methods can be very computationally expensive)
-<<<<<<< HEAD
- 
-EM-MT algorithm (to reduce the bias)
- 
-
- 
- 
- 
- 
- 
- 
- 
-
-=======
 
 Use the function createMixtureWithBootstrap(sparkContext, content, numberOfTree)
  
@@ -255,7 +191,6 @@ Use the function EM(sc, content, sierOfMixture)
  
  
  
->>>>>>> 70ecb6126a16fdb71eac08407bcfe31b95d7958e
 
 
 
