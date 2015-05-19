@@ -246,7 +246,7 @@ object GHS extends Serializable
 			val updateFrontierGraph = updateFragmentId(minFragmentEdgeGraph).cache()
 			val updateIdFragment = updateFragment(updateFrontierGraph).mapVertices{ case(vid, node) =>
 				if(node.fragment.id < node.fragment.lastFragmentId) GHSNode(Fragment(node.fragment.id, node.fragment.id), AddedLink())
-				else GHSNode(node.fragment, AddedLink()) }
+				else GHSNode(node.fragment, AddedLink()) }.cache()
 			GHSrec(setMinFragmentId(updateIdFragment), newSetEdges)	
 		}
 	}

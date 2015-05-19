@@ -47,10 +47,10 @@ object Main {
         //~ val filename = Console.readLine
         //~ val filename = "simple_labeled"
         val filename = "test_file/2_values/50nodes"
-        val filenameTrain = "test_file/200_5/data_120/DAG__num_var200_m_par5_0_samples120_data0.dat"
+        val filenameTrain = "test_file/data/data_observations_number/data_120/DAG__num_var200_m_par5_0_samples120_data0.dat"
         //~ val filenameTest = "test_file/200_5/DAG__num_var200_m_par5_0_samples50000_validation.dat"
-        val filenameTest = "test_file/200_5/short_observation.dat"
-        val filenameValidation = "test_file/200_5/DAG__num_var200_m_par5_0_samples50000_validation_proba.dat"
+        val filenameTest = "test_file/data/data_observations_number/short_observation.dat"
+        val filenameValidation = "test_file/data/data_observations_number/validation0.dat"
         
         print("Please enter your label delimiter in this file : " )
         //~ val labeldelimiter = Console.readLine
@@ -156,7 +156,7 @@ object Main {
         val t1 = System.currentTimeMillis
         val numberOfTree = 2
         val mixtureTree = createMixtureWithBootstrap(sc, variablesSample, numberOfTree)
-        val mixtureTree2 = createMixtureWithBootstrapBayes(sc, variablesSample, numberOfTree)
+        val mixtureTreeBayes = createMixtureWithBootstrapBayes(sc, variablesSample, numberOfTree)
         val t2 = System.currentTimeMillis
         val inferedProb = getInferedProbability(mixtureTree, evidence)
         val t3 = System.currentTimeMillis
@@ -171,8 +171,8 @@ object Main {
         val evidencePerObs = evidenceSetRDD.zipWithIndex
         for (i <- 0 to (evidenceSetRDD.count.toInt-1)) yield (getInferedProbability(mixtureTree, evidencePerObs.filter(e => e._2 == i.toLong).first._1))
 		
-		val fraction = 5
-		EM(sc, variablesSample, fraction)
+		//~ val fraction = 5
+		//~ EM(sc, variablesSample, fraction)
 
         // TEST 
                 
@@ -188,6 +188,7 @@ object Main {
         
         val numberOfSample = train.count.toInt
         KLDivergence(mixtureTree, test, validation, numberOfSample, sc)
+        KLDivergence(mixtureTreeBayes, test, validation, numberOfSample, sc)
         KLDivergenceChart(variablesSample, test, validation, 1, 6, 2, sc)
         
         

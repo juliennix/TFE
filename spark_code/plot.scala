@@ -252,7 +252,7 @@ object Plot
 		frame.setVisible(true)
 	}
 	
-	def KLDivergenceChart(train : RDD[(Double, Array[Double])], test : RDD[Array[Double]], validation : RDD[(Double, Double)],  begin : Int, end : Int, step : Int, sc : SparkContext) = 
+	def KLDivergenceChart(train : RDD[(Double, Array[Double])], test : RDD[Array[Double]], validation : RDD[Double],  begin : Int, end : Int, step : Int, sc : SparkContext) = 
 	{
 		val chartTitle = ""
 		val xAxisLabel = "number of trees"
