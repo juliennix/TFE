@@ -32,7 +32,8 @@ Main dependencies
 (need to add the .jar: jung-algorithms-2.0.1.jar,jung-visualization-2.0.1.jar,collections-generic-4.01.jar,jung-api-2.0.1.jar,jung-graph-impl-2.0.1.jar, uploaded in the directory dependencies_jars)
 
 Visualization tools for graph and tree
-### JFreeChart  (need to add the .jar : jfreechart-1.0.13.jar,jcommon-1.0.23.jar, uploaded in the directory dependencies_jars) 
+### JFreeChart  
+(need to add the .jar : jfreechart-1.0.13.jar,jcommon-1.0.23.jar, uploaded in the directory dependencies_jars) 
 Visualization tools for graphics
 
 1. Overview
