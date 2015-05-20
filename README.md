@@ -33,7 +33,8 @@ Main dependencies
 
 Visualization tools for graph and tree
 ### JFreeChart  
-(need to add the .jar : jfreechart-1.0.13.jar,jcommon-1.0.23.jar, uploaded in the directory dependencies_jars) 
+(need to add the .jar : jfreechart-1.0.13.jar,jcommon-1.0.23.jar, uploaded in the directory dependencies_jars)
+
 Visualization tools for graphics
 
 1. Overview
