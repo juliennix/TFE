@@ -16,11 +16,11 @@ When the package is done, you are ready to launch and use it
 
 In order to run it in the spark shell, type in the shell : 
 
-/spark-1.2.1/bin/spark-shell --master local[number_of_local_core] --jars spark_code_2.10-1.0.jar,jfreechart-1.0.13.jar,jcommon-1.0.23.jar,jung-algorithms-2.0.1.jar,jung-visualization-2.0.1.jar,collections-generic-4.01.jar,jung-api-2.0.1.jar,jung-graph-impl-2.0.1.jar 
+/spark-1.2.1/bin/spark-shell --master local[number_of_local_core] --jars spark-code_2.10-1.0.jar 
 
 In order to use the main file (should be re-write by yourself), type in the shell : 
 
-/spark-1.2.1/bin/spark-submit --class "Main" spark_code_2.10-1.0.jar --jars jfreechart-1.0.13.jar,jcommon-1.0.23.jar,jung-algorithms-2.0.1.jar,jung-visualization-2.0.1.jar,collections-generic-4.01.jar,jung-api-2.0.1.jar,jung-graph-impl-2.0.1.jar 
+/spark-1.2.1/bin/spark-submit --class "Main" spark-code_2.10-1.0.jar 
 
 Feel free to tune the spark configurations
 
@@ -29,8 +29,10 @@ Dependencies
 ### Spark and GraphX
 Main dependencies
 ### Jung2
+(need to add the .jar: jung-algorithms-2.0.1.jar,jung-visualization-2.0.1.jar,collections-generic-4.01.jar,jung-api-2.0.1.jar,jung-graph-impl-2.0.1.jar, uploaded in the directory dependencies_jars)
+
 Visualization tools for graph and tree
-### JFreeChart
+### JFreeChart  (need to add the .jar : jfreechart-1.0.13.jar,jcommon-1.0.23.jar, uploaded in the directory dependencies_jars) 
 Visualization tools for graphics
 
 1. Overview
