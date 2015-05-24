@@ -32,8 +32,8 @@ object TestMethod extends Serializable
 					  },
 					  (a, b) => a
 					)
-			val probaRoot = tree.vertices.filter(e => e._2.level == 0D).join(tree.vertices).map(t =>
-				(1, t)).join(test.map(e => (1,e))).map{case (key, ((vid, (parentId, markovNode)), (obs, arr))) => 
+			val probaRoot = tree.vertices.filter(e => e._2.level == 0D).map(t =>
+				(1, t)).join(test.map(e => (1,e))).map{case (key, ((vid, markovNode), (obs, arr))) => 
 					(obs, markovNode.cpt.getOrElse(JointEvent(arr(vid.toInt), arr(vid.toInt)), Probability( 1D/(numberOfSample+markovNode.cpt.keys.maxBy(jointEvent => 
 						jointEvent.variable).variable))))}.cache
 					
@@ -43,7 +43,7 @@ object TestMethod extends Serializable
 						jointEvent.variable).variable))))}.groupBy(x => x._1).map{case (key, probIter) => (key, probIter.reduce((a,b) => (key, Probability(a._2.value * b._2.value))))}.map{case(key, (key2, prob)) =>
 							(key, prob)}.cache
 			
-			validation.map{case(v,k) => (k,v)}.join(probaRoot.join(proba).map{case(key, (probaR, probaN)) =>
+			validation.join(probaRoot.join(proba).map{case(key, (probaR, probaN)) =>
 				(key, probaR.value * probaN.value)}).map{case (key, (realProba, mixtureProba)) => 
 				(math.log(realProba/mixtureProba))/math.log(2)}.reduce(_ + _)/numberOfEvidence
 			
