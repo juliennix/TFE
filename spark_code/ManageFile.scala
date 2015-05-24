@@ -54,11 +54,38 @@ object ManageFile extends Serializable
         return dataRDD
     }
     
+    def FileToRDDIndexedObs(absPath:String, labelDelimiter:String, delimiter:String, sc : SparkContext): RDD[(Double, Array[Double])] =
+    {  
+		
+        println("Now reading... " + absPath)
+        val data = sc.textFile(absPath)
+        val dataRDD = data.map 
+        { 
+            line =>
+            val parts = line.split("""\""" + labelDelimiter)
+            (parts(0).toDouble, parts(1).split("""\""" + delimiter).map(_.toDouble))
+        }
+        return dataRDD
+    }
+    
     def FileToRDDValidation(absPath:String, sc : SparkContext): RDD[Double] =
     {  
         println("Now reading... " + absPath)
         val data = sc.textFile(absPath).map(_.toDouble)    
         return data
+    }
+    
+    def FileToRDDIndexedValidation(absPath:String, labelDelimiter : String, sc : SparkContext): RDD[(Double, Double)] =
+    {  
+        println("Now reading... " + absPath)
+        val data = sc.textFile(absPath)
+        val dataRDD = data.map 
+        { 
+            line =>
+            val parts = line.split("""\""" + labelDelimiter)
+            (parts(0).toDouble, parts(1).toDouble)
+        }
+        return dataRDD
     }
 
 	def getVariableSampleFromObs[T: ClassTag](observations : RDD[Array[T]]): RDD[(Double, Array[T])] =
@@ -228,6 +255,22 @@ object ManageFile extends Serializable
 		writer.close()
 	}
 	
+	def indexedFile(filename: String, readFilename: String, delimiter: String) =
+	{
+		val outputFile = new File(filename)
+		val writer = new PrintWriter(new FileWriter(outputFile))
+		val buf = new StringBuilder
+		var i = 0
+		for (line <- Source.fromFile(readFilename).getLines()) 
+		{
+			line addString (buf, i.toString + delimiter + ", ", "", "")
+			writer.write(buf.toString)
+			writer.write("\n")
+			buf.setLength(0)
+			i = i + 1
+		}
+		writer.close()
+	}
 	
 	def intList(l : List[String]) = l.map(x=>Integer.parseInt(x))
 }

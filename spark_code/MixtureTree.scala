@@ -159,39 +159,4 @@ object MixtureTree extends Serializable
         val beliefByTree = inferedMixture.map( tree => tree.vertices.map(e => (e._1, e._2.belief.map{ case (key, prob) => (key -> Probability(prob.value/numberOfTree))})))
         return beliefByTree.reduce((a,b) => a.join(b).map{ case(key, (map1, map2)) => (key, sumMapByKey(map1, map2))})
 	}
-	
-	//~ val numberOfVar = train.count
-			//~ val numberOfObs = train.first._2.length
-			//~ val trainAndBelief = mixtureTree.map{tree => tree.vertices.map(v => (v._1.toDouble, v._2.belief)).join(train)}
-			//~ // Compute gamma_k(i)
-			//~ val muAndP = (trainAndBelief.zip(muK)).map{ case(frac, mu) => 
-			//~ {
-				//~ val param = frac.map(a => (1, a)).join(mu.map(m => (1, m)))
-				//~ // maybe should use a fold
-				//~ val observationProb = param.map{ case( genericKey, ((key, (prob, arr)), mu)) => (1, arr.map(v => Probability(mu.value * prob(v).value)))}
-				//~ observationProb.reduceByKey((probArr1, probArr2) =>  (probArr1.zip(probArr2)).map{ case (a,b) => Probability(a.value * b.value)})
-			//~ }}
-			//~ val sumGamma= muAndP.reduce((rdd1, rdd2) => (rdd1.join(rdd2)).map{ case(key, (probArr1, probArr2)) => (key, (probArr1.zip(probArr2)).map{case(a,b) => Probability(a.value + b.value)})})
-			//~ val gammaK = muAndP.map(t => (t.join(sumGamma)).map{ case (key,(muP, g)) => (muP.zip(g)).map{case(a,b) => Probability(a.value/b.value)}})
-			//~ val trainAndGammaK  = gammaK.zipWithIndex.map{ case(arr, i) => arr.map(v => (i.toDouble,v)).join(train).map{case(key, (sample, gK)) => (key, gK.zip(sample))}}
-	//~ 
-			//~ val newMixtureTree = trainAndGammaK.map(t => {
-			    //~ val messageGraph = GHSWeightedGraph(t, sc)
-				//~ val GHSMwstGraph = GHSMwst(messageGraph)
-			    //~ val markovTree = markovTreeCreation(GHSMwstGraph)
-				//~ learnWeightedParameters(markovTree, t)	
-			//~ })
-			//~ // compute mu_k
-			//~ val newMuK = gammaK.map{ probArr => probArr.map{ prob => {
-					//~ val reduceProb = prob.reduce((a,b) => Probability(a.value + b.value))			
-					//~ Probability(reduceProb.value / numberOfObs)}}}
-	//~ 
-			//~ val newTheta =  mixtureTree.map(tree => tree.vertices.map{case(key, node) => node.cpt(node.cpt.keys.min(Ordering.by[JointEvent, Double](e => e.variable)))}.
-				//~ reduce((a,b) => Probability(a.value + b.value))).reduce((a,b) => Probability(a.value + b.value)).value / (mixtureSize * numberOfVar) 
-				//~ 
-			//~ if( theta - newTheta < 1)
-				//~ return (newMixtureTree, muK)
-			//~ else
-				//~ recEM(sc, train, newMixtureTree, mixtureSize, newMuK, newTheta)
-		//~ }
 }

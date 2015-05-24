@@ -252,7 +252,7 @@ object Plot
 		frame.setVisible(true)
 	}
 	
-	def KLDivergenceChart(train : RDD[(Double, Array[Double])], test : RDD[Array[Double]], validation : RDD[Double],  begin : Int, end : Int, step : Int, sc : SparkContext) = 
+	def KLDivergenceChart(train : RDD[(Double, Array[Double])], test : RDD[(Double, Array[Double])], validation : RDD[(Double, Double)],  begin : Int, end : Int, step : Int, sc : SparkContext) = 
 	{
 		val chartTitle = ""
 		val xAxisLabel = "number of trees"
@@ -262,11 +262,9 @@ object Plot
 		val dataset = new XYSeriesCollection()
 		for(numberOfTree  <- begin to end by step)
 		{
-			val evidence = EvidenceSet()
 			val mixtureTree = createMixtureWithBootstrap(sc, train, numberOfTree)
-			//~ val inferedProb = getInferedProbability(mixtureTree, evidence)
 			val numberOfSample = train.count.toInt
-			val score = KLDivergence(mixtureTree, test, validation, numberOfSample, sc)
+			val score = KLDivergenceRDD(mixtureTree, test, validation, numberOfSample, sc)
 			println(numberOfTree, score)
 			serie.add(numberOfTree, score)
 		}

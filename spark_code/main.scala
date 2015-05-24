@@ -36,7 +36,7 @@ object Main {
 		
 		// Define the spark context
 		val conf = new SparkConf()
-             .setMaster("local[4]")
+             .setMaster("local[1]")
              .setAppName("bayesian_network")
              .set("spark.executor.memory", "1g")
         val sc = new SparkContext(conf)
@@ -49,7 +49,7 @@ object Main {
         val filename = "test_file/2_values/50nodes"
         val filenameTrain = "test_file/data/data_observations_number/data_120/DAG__num_var200_m_par5_0_samples120_data0.dat"
         //~ val filenameTest = "test_file/200_5/DAG__num_var200_m_par5_0_samples50000_validation.dat"
-        val filenameTest = "test_file/data/data_observations_number/short_observation.dat"
+        val filenameTest = "test_file/data/data_observations_number/test0.dat"
         val filenameValidation = "test_file/data/data_observations_number/validation0.dat"
         
         print("Please enter your label delimiter in this file : " )
@@ -67,10 +67,10 @@ object Main {
         //~ val variablesSample = FileToPairRDDVar(filename, labeldelimiter, delimiter, sc)
         // Retrieve the content in an adequate file in a RDD[Double, Array[Double]]
         val train = FileToRDDObs(filenameTrain, obsDelimiter, sc)
-        val test = FileToRDDObs(filenameTest, obsDelimiter, sc)
+        val test = FileToRDDIndexedObs(filenameTest, labeldelimiter, obsDelimiter, sc)
         val variablesSample = getVariableSampleFromObs(train)
-        val evidenceSetRDD = getEvidenceFromTest(test)
-		val validation = FileToRDDValidation(filenameValidation, sc)
+        val evidenceSetRDD = getEvidenceFromTest(test.map{case(id, arr)=> arr})
+		val validation = FileToRDDIndexedValidation(filenameValidation, labeldelimiter, sc)
         
         // Retrieve the content in an adequate file in a RDD[LabeledPoint]
 		val labeledContent = FileGraphReader(filename, labeldelimiter, varDelimiter, sc)
@@ -154,7 +154,7 @@ object Main {
         
         // MIXTURE TREE BY BOOTSTRAPING 
         val t1 = System.currentTimeMillis
-        val numberOfTree = 2
+        val numberOfTree = 5
         val mixtureTree = createMixtureWithBootstrap(sc, variablesSample, numberOfTree)
         val mixtureTreeBayes = createMixtureWithBootstrapBayes(sc, variablesSample, numberOfTree)
         val t2 = System.currentTimeMillis
@@ -187,8 +187,10 @@ object Main {
         computationTimeChart(fileNames, repeat, method, sc)
         
         val numberOfSample = train.count.toInt
-        KLDivergence(mixtureTree, test, validation, numberOfSample, sc)
-        KLDivergence(mixtureTreeBayes, test, validation, numberOfSample, sc)
+        val score = KLDivergenceRDD(mixtureTree, test, validation, numberOfSample, sc)
+
+
+        KLDivergenceRDD(mixtureTree, test, validation, numberOfSample, sc)
         KLDivergenceChart(variablesSample, test, validation, 1, 6, 2, sc)
         
         
