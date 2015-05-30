@@ -68,62 +68,62 @@ object Plot
 						{
 							case 1 => 
 							{
-								val graph4 = RDDFastGraph(content,sc)
+								val graph4 = RDDFastGraph(content)
 								kruskalEdgesAndVertices(graph4).edges.count
 								methodName = "First Kruskal"
 							}
 							case 2 => 
 							{
-								val graph4 = RDDFastGraph(content,sc)
+								val graph4 = RDDFastGraph(content)
 								kruskalEdges(graph4).edges.count
 								methodName = "Second Kruskal"
 							}
 							
 							case 3 => 
 							{
-								val graph4 = RDDFastGraph(content,sc)
+								val graph4 = RDDFastGraph(content)
 								PrimsAlgo(graph4).edges.count
 								methodName = "First Prim"
 							}
 							case 4 => 
 							{
-								val graph4 = RDDFastGraph(content,sc)
+								val graph4 = RDDFastGraph(content)
 								boruvkaAlgo(graph4).edges.count
 								methodName = "First Boruvka"
 							}
 							case 5 => 
 							{
-								val graph4 = RDDFastGraph(content,sc)
+								val graph4 = RDDFastGraph(content)
 								kruskalEdgeRDD(graph4).edges.count
 								methodName = "Third Kruskal"
 							}
 							case 6 => 
 							{
-								val graph4 = RDDFastGraph(content,sc)
+								val graph4 = RDDFastGraph(content)
 								PrimsDistFuncEdge(graph4).edges.count
 								methodName = "Second Prim"
 							}
 							case 7 => 
 							{
-								val graph4 = RDDFastGraph(content,sc)
+								val graph4 = RDDFastGraph(content)
 								PrimsEdge(graph4).edges.count
 								methodName = "Third Prim"
 							}
 							case 8 => 
 							{
-								val graph4 = RDDFastGraph(content,sc)
+								val graph4 = RDDFastGraph(content)
 								PrimsRDD(graph4).edges.count
 								methodName = "Fourth Prim"
 							}
 							case 9 => 
 							{
-								val graph4 = RDDFastGraph(content,sc)
+								val graph4 = RDDFastGraph(content)
 								boruvkaDistAlgo(graph4).edges.count
 								methodName = "Second Kruskal"
 							}
 							case 10 => 
 							{
-								val messageGraph = GHSGraph(content, sc)
+								val messageGraph = GHSGraph(content)
 								GHSMwst(messageGraph).edges.count
 								methodName = "GHS"
 							}
@@ -264,7 +264,7 @@ object Plot
 		{
 			val mixtureTree = createMixtureWithBootstrap(sc, train, numberOfTree)
 			val numberOfSample = train.count.toInt
-			val score = KLDivergenceRDD(mixtureTree, test, validation, numberOfSample, sc)
+			val score = KLDivergenceRDD(mixtureTree, test, validation, numberOfSample)
 			println(numberOfTree, score)
 			serie.add(numberOfTree, score)
 		}

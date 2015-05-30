@@ -107,9 +107,9 @@ object Inference extends Serializable
 		
 		// Keep only the element in the vertices that are usefull for the pi propagation
 		val messageToChildren = lambdaGraph.vertices.join(lambdaGraph.collectNeighbors(EdgeDirection.Out))
-		.map{ case (vid, (attr, arr)) => if(arr.isEmpty) (vid, SecondPhaseNode(attr.state, attr.cpt, attr.lambda, attr.pi, Map())) 
+		.map{ case (pid, (attr, arr)) => if(arr.isEmpty) (pid, SecondPhaseNode(attr.state, attr.cpt, attr.lambda, attr.pi, Map())) 
 			else 
-				(vid, SecondPhaseNode(attr.state, attr.cpt, attr.lambda, attr.pi, computeChildrenMessage(arr.map{ case (vid, node) => (vid, node.lambda)})))}
+				(pid, SecondPhaseNode(attr.state, attr.cpt, attr.lambda, attr.pi, computeChildrenMessage(attr.pi, arr.map{ case (cid, node) => (cid, node.lambda)})))}
 					
 		val readyGraph = Graph(messageToChildren , evidenceGraph.edges)
 		
@@ -131,11 +131,13 @@ object Inference extends Serializable
 			map1.map{ case(key, prob) => (key, Probability(prob.value * map2(key).value))}
 	}
 	
-	def computeChildrenMessage(array : Array[(VertexId, Map[Double, Probability])]) : Map[VertexId, Map[Double, Probability]] =
+	def computeChildrenMessage(pi: Map[Double, Probability], array : Array[(VertexId, Map[Double, Probability])]) : Map[VertexId, Map[Double, Probability]] =
 	{
 		if(array.length == 1) return array.map{ case(cid, lambda) => (cid, lambda.map{case (k,v) => (k, Probability(1D))})}.toMap
 		else
-		return array.map{ case (cid, lambda) => (cid, array.filter{ case (id, l) => l != cid}.map{ case (id, arr) => arr}.reduce((a,b) => a.map{case(key, prob) => (key, Probability(prob.value * b(key).value))}))}.toMap
+		//~ return array.map{ case (cid, lambda) => (cid, array.filter{ case (id, l) => l != cid}.map{ case (id, arr) => arr}.reduce((a,b) => a.map{case(key, prob) => (key, Probability(prob.value * b(pid).value))}))}.toMap
+		return array.map{ case (cid, lambda) => (cid, pi.map{case (z, prob) => (z, Probability( prob.value * array.filter{ case (id, l) => l != cid}.map{case (id, arr) => arr}
+			.reduce((a,b) => Map(z -> Probability(a(z).value * b(z).value)))(z).value))})}.toMap
 	}
 	
 	// First phase : Lambda messages Pregel's function

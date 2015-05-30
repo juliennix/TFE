@@ -136,7 +136,7 @@ object DistributedGraph extends Serializable
 		return weigthGraph
 	}
 	
-	def RDDFastGraph(samples :  RDD[(Double, Array[Double])], sc : SparkContext) :  Graph[Double, Double] = 
+	def RDDFastGraph(samples :  RDD[(Double, Array[Double])]) :  Graph[Double, Double] = 
 	{			
 		val mutualInfo = mutInfoRDD(samples)
         val vertices: RDD[(VertexId, Double)] = samples.map { case(k,v) =>
@@ -146,7 +146,7 @@ object DistributedGraph extends Serializable
 		return graph
 	}
 	
-	def LabeledfastFullGraph(samples : RDD[LabeledPoint], sc : SparkContext) :  Graph[Array[Double], Double] = 
+	def LabeledfastFullGraph(samples : RDD[LabeledPoint]) :  Graph[Array[Double], Double] = 
 	{
         val nbNodes = samples.count.toInt
 			
@@ -168,7 +168,7 @@ object DistributedGraph extends Serializable
 		return weigthGraph
 	}
 	
-	def RDDfastFullGraph(samples :  RDD[(Double, Array[Double])], sc : SparkContext) :  Graph[Double, Double] = 
+	def RDDfastFullGraph(samples :  RDD[(Double, Array[Double])]) :  Graph[Double, Double] = 
 	{
 		val mutualInfo = fullMutInfoRDD(samples)
         val vertices: RDD[(VertexId, Double)] = samples.map { case(k,v) =>
@@ -182,7 +182,7 @@ object DistributedGraph extends Serializable
 		- mutInfo(triplet.srcAttr, triplet.dstAttr)
 		
 		
-	def GHSGraph(samples :  RDD[(Double, Array[Double])], sc : SparkContext) :  Graph[GHSNode, GHSEdge] = 
+	def GHSGraph(samples :  RDD[(Double, Array[Double])]) :  Graph[GHSNode, GHSEdge] = 
 	{			
 		val mutualInfo = mutInfoRDD(samples)
         val vertices: RDD[(VertexId, GHSNode)] = samples.map { case(k,v) =>
@@ -192,7 +192,7 @@ object DistributedGraph extends Serializable
 		return graph
 	}
 	
-	def GHSWeightedGraph(samples :  RDD[(Double, Array[(Double, Probability)])], sc : SparkContext) :  Graph[GHSNode, GHSEdge] = 
+	def GHSWeightedGraph(samples :  RDD[(Double, Array[(Double, Probability)])]) :  Graph[GHSNode, GHSEdge] = 
 	{			
 		val mutualInfo = weightedMutInfo(samples)
         val vertices: RDD[(VertexId, GHSNode)] = samples.map { case(k,v) =>

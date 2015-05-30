@@ -20,7 +20,7 @@ import graphicalLearning.MutualInfo._
 
 object TestMethod extends Serializable
 {	
-	def KLDivergenceRDD(mixtureTree : Array[Graph[MarkovNode, Double]], test : RDD[(Double, Array[Double])], validation : RDD[(Double, Double)], numberOfSample: Int, sc : SparkContext) : Double = 
+	def KLDivergenceRDD(mixtureTree : Array[Graph[MarkovNode, Double]], test : RDD[(Double, Array[Double])], validation : RDD[(Double, Double)], numberOfSample: Int) : Double = 
 	{
 		val numberOfEvidence = test.count
 		val numberOfTree = mixtureTree.length

@@ -57,6 +57,7 @@ object Resample extends Serializable
         val setIndex = shuffle((0D to arrSize-1 by 1D).take(trainPercentage).toSet)
 		val trainAndTest = content.map{ case (key, arr) => 
 			{
+				val arrSize = arr.length
 				val zipedArr = arr.zipWithIndex
 				(key, zipedArr.filter{ case(value, index) => setIndex.contains(index)}.map(arr => arr._1), zipedArr.filter{ case(value, index) => !setIndex.contains(index)}.map(arr => arr._1))
 			}

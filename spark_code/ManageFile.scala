@@ -263,7 +263,7 @@ object ManageFile extends Serializable
 		var i = 0
 		for (line <- Source.fromFile(readFilename).getLines()) 
 		{
-			line addString (buf, i.toString + delimiter + ", ", "", "")
+			line addString (buf, i.toString + delimiter + ",", "", "")
 			writer.write(buf.toString)
 			writer.write("\n")
 			buf.setLength(0)

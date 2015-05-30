@@ -32,7 +32,7 @@ object MixtureTree extends Serializable
 		{
 			// 'll see what kind of seed to put here
 			val bootstrapInput = bootstrapRDD(input, 1)
-			val messageGraph = GHSGraph(bootstrapInput, sc)
+			val messageGraph = GHSGraph(bootstrapInput)
 			val GHSMwstGraph = GHSMwst(messageGraph)
 			val markovTree = markovTreeCreation(GHSMwstGraph)
 			//~ val graph = RDDFastGraph(bootstrapInput,sc)
@@ -50,7 +50,7 @@ object MixtureTree extends Serializable
 		{
 			// 'll see what kind of seed to put here
 			val bootstrapInput = bootstrapRDD(input, 1)
-			val messageGraph = GHSGraph(bootstrapInput, sc)
+			val messageGraph = GHSGraph(bootstrapInput)
 			val GHSMwstGraph = GHSMwst(messageGraph)
 			val markovTree = markovTreeCreation(GHSMwstGraph)
 			//~ val graph = RDDFastGraph(bootstrapInput,sc)

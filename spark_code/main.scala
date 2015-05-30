@@ -48,13 +48,14 @@ object Main {
         //~ val filename = "simple_labeled"
         val filename = "test_file/2_values/50nodes"
         val filenameTrain = "test_file/data/data_observations_number/data_120/DAG__num_var200_m_par5_0_samples120_data0.dat"
+        //~ val filenameTrain = "test_file/data/data_observations_number/data_120/DAG__num_var200_m_par5_0_samples1000_data0.dat"
         //~ val filenameTest = "test_file/200_5/DAG__num_var200_m_par5_0_samples50000_validation.dat"
-        val filenameTest = "test_file/data/data_observations_number/test0.dat"
-        val filenameValidation = "test_file/data/data_observations_number/validation0.dat"
+        val filenameTest = "test_file/data/indexedTest0.dat"
+        val filenameValidation = "test_file/data/indexedValidation0.dat"
         
         print("Please enter your label delimiter in this file : " )
         //~ val labeldelimiter = Console.readLine
-        val labeldelimiter = ","
+        val labelDelimiter = ","
         val varDelimiter = " "   
             
         print("Please enter your delimiter in this file : " )
@@ -67,13 +68,13 @@ object Main {
         //~ val variablesSample = FileToPairRDDVar(filename, labeldelimiter, delimiter, sc)
         // Retrieve the content in an adequate file in a RDD[Double, Array[Double]]
         val train = FileToRDDObs(filenameTrain, obsDelimiter, sc)
-        val test = FileToRDDIndexedObs(filenameTest, labeldelimiter, obsDelimiter, sc)
+        val test = FileToRDDIndexedObs(filenameTest, labelDelimiter, obsDelimiter, sc)
         val variablesSample = getVariableSampleFromObs(train)
         val evidenceSetRDD = getEvidenceFromTest(test.map{case(id, arr)=> arr})
-		val validation = FileToRDDIndexedValidation(filenameValidation, labeldelimiter, sc)
+		val validation = FileToRDDIndexedValidation(filenameValidation, labelDelimiter, sc)
         
         // Retrieve the content in an adequate file in a RDD[LabeledPoint]
-		val labeledContent = FileGraphReader(filename, labeldelimiter, varDelimiter, sc)
+		val labeledContent = FileGraphReader(filename, labelDelimiter, varDelimiter, sc)
 		
 		// Some old way to compute the mwst from a mutual information' array
         val M = skelTree(labeledContent)
@@ -93,12 +94,12 @@ object Main {
         
         val graph3 = LabeledFastGraph(labeledContent, sc).cache
         
-        val graph4 = RDDFastGraph(variablesSample,sc)
+        val graph4 = RDDFastGraph(variablesSample)
         
         // graph functions to define fully dense graphs
-        val fullGraph1 = LabeledfastFullGraph(labeledContent, sc).cache
+        val fullGraph1 = LabeledfastFullGraph(labeledContent).cache
         
-        val fullGraph2 = RDDfastFullGraph(variablesSample, sc).cache
+        val fullGraph2 = RDDfastFullGraph(variablesSample).cache
 
 		// MWST ALGORITHMS (first) //
 		// Those algorithm compute the mwst partially on the local driver
@@ -129,7 +130,7 @@ object Main {
         val boruvkaGraph2 = boruvkaDistAlgo(graph4)
                 
         // GHS
-        val messageGraph = GHSGraph(variablesSample, sc)
+        val messageGraph = GHSGraph(variablesSample)
         val GHSMwstGraph = GHSMwst(messageGraph)
         
         // DISPLAY GRAPHS //
@@ -154,7 +155,7 @@ object Main {
         
         // MIXTURE TREE BY BOOTSTRAPING 
         val t1 = System.currentTimeMillis
-        val numberOfTree = 5
+        val numberOfTree = 2
         val mixtureTree = createMixtureWithBootstrap(sc, variablesSample, numberOfTree)
         val mixtureTreeBayes = createMixtureWithBootstrapBayes(sc, variablesSample, numberOfTree)
         val t2 = System.currentTimeMillis
@@ -164,7 +165,7 @@ object Main {
      
 		//~ val (train, test) = getTrainAndTestSet(variablesSample)
 		
-		val trainGraph = GHSGraph(variablesSample, sc)
+		val trainGraph = GHSGraph(variablesSample)
         val GHSMwstGraph2 = GHSMwst(trainGraph)
 
         // INFERENCE ON THE MIXTURE (INFERENCE PER TREE AND THEN AVERAGING)
@@ -187,10 +188,10 @@ object Main {
         computationTimeChart(fileNames, repeat, method, sc)
         
         val numberOfSample = train.count.toInt
-        val score = KLDivergenceRDD(mixtureTree, test, validation, numberOfSample, sc)
+        val score = KLDivergenceRDD(mixtureTree, test, validation, numberOfSample)
 
 
-        KLDivergenceRDD(mixtureTree, test, validation, numberOfSample, sc)
+        KLDivergenceRDD(mixtureTree, test, validation, numberOfSample)
         KLDivergenceChart(variablesSample, test, validation, 1, 6, 2, sc)
         
         
