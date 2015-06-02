@@ -96,14 +96,14 @@ object Inference extends Serializable
 			}
 		}
 		// Compute the graph with the evidence in order to perform inference on it
-		val evidenceGraph = Graph(init, markovTreeSetUp.edges)
+		val evidenceGraph = Graph(init, markovTreeSetUp.edges) 
 		
 		// Compute the lambda messages in the graph
 		val initFirstPhaseMessage = FirstPhaseMessage(Map[Double, Probability](), max_depth)
 		val lambdaGraph = evidenceGraph.pregel(initFirstPhaseMessage, activeDirection = EdgeDirection.In)(
 		vprog = NodeLambdaUpdate,
 		sendMsg = updateLambda,
-		mergeMsg = combineLambda)
+		mergeMsg = combineLambda) 
 		
 		// Keep only the element in the vertices that are usefull for the pi propagation
 		val messageToChildren = lambdaGraph.vertices.join(lambdaGraph.collectNeighbors(EdgeDirection.Out))

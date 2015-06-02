@@ -138,7 +138,7 @@ object DistributedGraph extends Serializable
 	
 	def RDDFastGraph(samples :  RDD[(Double, Array[Double])]) :  Graph[Double, Double] = 
 	{			
-		val mutualInfo = mutInfoRDD(samples)
+		val mutualInfo = mutInfoRDD(samples) 
         val vertices: RDD[(VertexId, Double)] = samples.map { case(k,v) =>
 			(k.toLong, k)}
 		val edges = mutualInfo.map{ case ((key1, key2), weight) => Edge(key1.toLong, key2.toLong, - weight)}
@@ -170,7 +170,7 @@ object DistributedGraph extends Serializable
 	
 	def RDDfastFullGraph(samples :  RDD[(Double, Array[Double])]) :  Graph[Double, Double] = 
 	{
-		val mutualInfo = fullMutInfoRDD(samples)
+		val mutualInfo = fullMutInfoRDD(samples) 
         val vertices: RDD[(VertexId, Double)] = samples.map { case(k,v) =>
 			(k.toLong, k)}
 		val edges = mutualInfo.map{ case ((key1, key2), weight) => Edge(key1.toLong, key2.toLong, - weight)}
@@ -184,7 +184,7 @@ object DistributedGraph extends Serializable
 		
 	def GHSGraph(samples :  RDD[(Double, Array[Double])]) :  Graph[GHSNode, GHSEdge] = 
 	{			
-		val mutualInfo = mutInfoRDD(samples)
+		val mutualInfo = mutInfoRDD(samples) 
         val vertices: RDD[(VertexId, GHSNode)] = samples.map { case(k,v) =>
 			(k.toLong, GHSNode(Fragment(k.toLong, k.toLong, 0D), AddedLink()))}
 		val edges = mutualInfo.map{ case ((key1, key2), weight) => Edge(key1.toLong, key2.toLong, GHSEdge(- weight))}
@@ -194,7 +194,7 @@ object DistributedGraph extends Serializable
 	
 	def GHSWeightedGraph(samples :  RDD[(Double, Array[(Double, Probability)])]) :  Graph[GHSNode, GHSEdge] = 
 	{			
-		val mutualInfo = weightedMutInfo(samples)
+		val mutualInfo = weightedMutInfo(samples) 
         val vertices: RDD[(VertexId, GHSNode)] = samples.map { case(k,v) =>
 			(k.toLong, GHSNode(Fragment(k.toLong, k.toLong, 0D), AddedLink()))}
 		val edges = mutualInfo.map{ case ((key1, key2), weight) => Edge(key1.toLong, key2.toLong, GHSEdge(- weight))}
