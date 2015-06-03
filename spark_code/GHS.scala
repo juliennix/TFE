@@ -234,7 +234,7 @@ object GHS extends Serializable
 	def GHSrec(graph : Graph[GHSNode, GHSEdge], edgeAdded : RDD[Edge[GHSEdge]]) : Graph[GHSNode, GHSEdge] = 
 	{
 		// update the fragment Id and check which is the best edges in a fragment
-		val minFragmentEdgeGraph = computeMinInFragment(graph) 
+		val minFragmentEdgeGraph = computeMinInFragment(graph).cache()
 		// compute the edges to be kept
 		val edges = minFragmentEdgeGraph.vertices.map{ case(vid,node) => Edge(node.addedLink.from, node.addedLink.to, GHSEdge(0D))}.filter{link => link.srcId != -1L}
 		val newSetEdges = (edgeAdded ++ edges).distinct
@@ -243,10 +243,10 @@ object GHS extends Serializable
 			return Graph(graph.vertices, newSetEdges)
 		else
 		{
-			val updateFrontierGraph = updateFragmentId(minFragmentEdgeGraph) 
+			val updateFrontierGraph = updateFragmentId(minFragmentEdgeGraph).cache()
 			val updateIdFragment = updateFragment(updateFrontierGraph).mapVertices{ case(vid, node) =>
 				if(node.fragment.id < node.fragment.lastFragmentId) GHSNode(Fragment(node.fragment.id, node.fragment.id), AddedLink())
-				else GHSNode(node.fragment, AddedLink()) } 
+				else GHSNode(node.fragment, AddedLink()) }.cache()
 			GHSrec(setMinFragmentId(updateIdFragment), newSetEdges)	
 		}
 	}
