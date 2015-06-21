@@ -90,17 +90,11 @@ object ManageFile extends Serializable
 
 	def getVariableSampleFromObs[T: ClassTag](observations : RDD[Array[T]]): RDD[(Double, Array[T])] =
 	{
-		return observations.map(arr => (1, arr.zipWithIndex.map(e => Map(e._2 -> Array(e._1))))).reduceByKey((a,b) => a.zip(b).map{case(map1, map2) => map1.map{case (key, value) => (key, value ++ map2(key))}}).flatMap{case (key, arr) => 
-			{	
-				arr.map(varAndArray =>
-				{
-					val variable = varAndArray.toArray
-					(variable.head._1.toDouble, variable.head._2)
-				})
-				
-			}}
-	}
-	
+		observations.zipWithIndex.map{case (k,v) => (v,k)}
+			.flatMapValues{ arr => arr.zipWithIndex.map{case (k,v) => (v,k)}}
+				.groupBy(element => element._2._1).map{case (l, iter) => (l, iter.toArray.sortBy(e => e._1).map{case (i1, (i2, v)) => v})}
+ 	}
+
 	// Functions which takes an adequate file and its delimiter between 
 	// label and the sample and a delimiter for the sample itself
 	// Return an RDD[LabeledPoint] where the label corresponds
