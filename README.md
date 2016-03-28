@@ -1,4 +1,4 @@
-TFE (in construction)
+TFE 
 Learning Graphical Probabilistic Models
 =======================================
 ### What for
